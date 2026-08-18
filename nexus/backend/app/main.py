@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.routers import (
     e2_trucks, e2_docks, e2_yard, e2_alerts,
     p2_demand, p2_inventory, p2_sop, p2_procurement, p2_markdown, p2_financial,
@@ -16,26 +16,31 @@ from app.routers import (
 from app.services.tracking_engine import start_tracking_loop, stop_tracking_loop
 from app.ws import manager, broadcast
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    Base.metadata.create_all(bind=engine)
-    
-    # Auto-seed if database is fresh / empty
-    from app.models import Facility
-    from app.database import SessionLocal
-    from app.seed import seed_db
+_db_initialized = False
+
+def init_db_data_if_needed():
+    global _db_initialized
+    if _db_initialized:
+        return
     try:
+        Base.metadata.create_all(bind=engine)
+        from app.models import Facility
+        from app.seed import seed_db
         with SessionLocal() as db:
             if not db.query(Facility).first():
                 seed_db()
+        _db_initialized = True
     except Exception as e:
-        print(f"Auto-seed notification: {e}")
+        print(f"DB auto-initialization message: {e}")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_db_data_if_needed()
     try:
         await start_tracking_loop(broadcast)
     except Exception as e:
-        print(f"Tracking loop notification: {e}")
+        print(f"Tracking loop background notice: {e}")
 
     yield
     # Shutdown
@@ -47,6 +52,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Serverless cold-start assurance middleware
+@app.middleware("http")
+async def ensure_db_on_request(request, call_next):
+    if not _db_initialized:
+        init_db_data_if_needed()
+    response = await call_next(request)
+    return response
 
 # CORS Middleware
 origins = os.getenv("CORS_ORIGINS", "*").split(",")
@@ -75,21 +88,21 @@ app.include_router(reports.router)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    return {"status": "healthy", "service": "NEXUS Control Tower Backend", "version": "1.0.0"}
+    return {"status": "ok", "system": "NEXUS Control Tower API", "version": "1.0.0"}
 
+# WebSocket endpoint for real-time truck tracking and yard updates
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive & listen for client ping/messages
-            data = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception:
         manager.disconnect(websocket)
 
-# Mount frontend static files (if frontend directory exists)
+# Mount frontend static directory if exists locally
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
 if os.path.exists(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
