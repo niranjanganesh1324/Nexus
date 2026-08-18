@@ -1,6 +1,6 @@
 # ⚡ NEXUS — End-to-End Supply Chain Control Tower
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-00D4C7?style=for-the-badge&logo=vercel&logoColor=white)](https://nexus-supply-chain.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-nexus--supply--chain.vercel.app-00D4C7?style=for-the-badge&logo=vercel&logoColor=white)](https://nexus-supply-chain.vercel.app)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/niranjanganesh1324/Nexus)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -13,9 +13,10 @@
 
 ## 🌐 Live Application & Links
 
-* **Live Cloud Deployment**: [https://nexus-supply-chain.vercel.app](https://nexus-supply-chain.vercel.app)
-* **GitHub Source Code**: [https://github.com/niranjanganesh1324/Nexus](https://github.com/niranjanganesh1324/Nexus)
-* **Interactive API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs) (when running locally)
+* **🚀 Live Cloud Deployment**: [https://nexus-supply-chain.vercel.app](https://nexus-supply-chain.vercel.app)
+* **📂 GitHub Source Repository**: [https://github.com/niranjanganesh1324/Nexus](https://github.com/niranjanganesh1324/Nexus)
+* **👥 Team Workload & Contribution Guide**: [`TEAM_CONTRIBUTIONS.md`](TEAM_CONTRIBUTIONS.md)
+* **📖 Interactive Swagger API Docs**: `http://localhost:8000/docs` (when running locally)
 
 ---
 
@@ -38,9 +39,15 @@
   * **Holt-Winters Statistical Forecasting**: Exponential smoothing with trend and seasonality over 18 months of historical records, reporting real validation **MAPE** and **RMSE**.
   * **Markdown Intelligence Engine**: Sell-through velocity tracking recommending optimized clearance schedules to protect gross margins.
 
-### 3. **The Closed-Loop Feedback Interlock (E2 $\longleftrightarrow$ P2)**
-* Highway disruptions trigger instant ripples into strategic planning. For example:
-  $$\text{TRK-104 Delayed (+32 min)} \longrightarrow \text{Premium Linen Shortfall} \longrightarrow \text{Summer Linen Safety Stock Alert} \longrightarrow \text{S&OP Rebalancing}$$
+### 3. **The Closed-Loop Feedback Interlock (E2 ↔ P2)**
+Highway disruptions trigger instant, automated ripples into strategic planning:
+
+```
+┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│  TRK-104 Delayed       │      │  Premium Linen         │      │  Summer Linen          │      │  S&OP Master Schedule  │
+│  (+32 min on corridor) │ ───► │  Fabric Shortfall      │ ───► │  Safety Stock Warning  │ ───► │  Capacity Rebalancing  │
+└────────────────────────┘      └────────────────────────┘      └────────────────────────┘      └────────────────────────┘
+```
 
 ---
 
@@ -78,28 +85,37 @@
 
 ---
 
-## 🧮 Mathematical & Algorithmic Models
+## 🧮 Mathematical & Algorithmic Formulations
 
-### 1. Explainable Dock Recommendation Algorithm
-Candidate dock doors are evaluated against 5 weighted operational dimensions:
-$$\text{Total Dock Score} = S_{\text{avail}} (35) + S_{\text{compat}} (25) + S_{\text{priority}} (20) + S_{\text{ETA}} (10) + S_{\text{proximity}} (10)$$
+### 1. Explainable Dock Door Scoring Model
 
-* **Availability ($35\%$)**: Zero overlap with maintenance or active occupancy windows.
-* **Compatibility ($25\%$)**: Cold-chain, hazmat, or garment hanger capability matching truck cargo.
-* **Priority ($20\%$)**: High-priority hot shipments granted fast-track unloading bay access.
-* **ETA Alignment ($10\%$)**: Dock ready exactly when truck enters yard perimeter.
-* **Proximity ($10\%$)**: Minimal forklift travel distance to target staging zone.
+Candidate dock doors are evaluated against 5 weighted operational dimensions (scored out of 100 points):
 
-### 2. Holt-Winters Triple Exponential Smoothing
-Demand forecasting captures base level ($\ell_t$), linear trend ($b_t$), and seasonal seasonality factors ($s_t$):
-$$\hat{y}_{t+m} = (\ell_t + m b_t) \cdot s_{t - L + 1 + (m-1)\bmod L}$$
+$$\text{Total Score} = S_{\text{avail}}(35) + S_{\text{compat}}(25) + S_{\text{priority}}(20) + S_{\text{ETA}}(10) + S_{\text{proximity}}(10)$$
 
-Evaluated using an 80/20 train/test split:
-$$\text{MAPE} = \frac{100\%}{n} \sum_{t=1}^n \left| \frac{y_t - \hat{y}_t}{y_t} \right|, \quad \text{RMSE} = \sqrt{\frac{1}{n} \sum_{t=1}^n (y_t - \hat{y}_t)^2}$$
+* **Availability ($35\text{ pts}$)**: $35\text{ pts}$ if completely idle and outside maintenance windows; $0\text{ pts}$ if occupied.
+* **Compatibility ($25\text{ pts}$)**: $25\text{ pts}$ if dock equipment capabilities (cold-chain, apparel hanger, pallet jack) match trailer requirements.
+* **Priority ($20\text{ pts}$)**: $20\text{ pts}$ for urgent/hot freight (`TRK-104`), $12\text{ pts}$ for medium, $5\text{ pts}$ for standard.
+* **ETA Alignment ($10\text{ pts}$)**: Proportional to the delta between truck yard arrival and door readiness ($\Delta t \le 15\text{ min}$).
+* **Proximity ($10\text{ pts}$)**: Forklift travel distance from bay to target staging zone.
 
 ---
 
-## 🚀 Key Features
+### 2. Triple Holt-Winters Exponential Smoothing
+
+Apparel demand forecasting extracts level ($\ell_t$), linear trend ($b_t$), and multiplicative seasonal factors ($s_t$) across an $L=12$ monthly cycle:
+
+$$\hat{y}_{t+m} = (\ell_t + m \cdot b_t) \cdot s_{t - L + 1 + (m-1)\bmod L}$$
+
+**Model Validation Metrics**:
+* **Mean Absolute Percentage Error (MAPE)**:
+  $$\text{MAPE} = \frac{100\%}{n} \sum_{t=1}^n \left| \frac{y_t - \hat{y}_t}{y_t} \right|$$
+* **Root Mean Squared Error (RMSE)**:
+  $$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{t=1}^n (y_t - \hat{y}_t)^2}$$
+
+---
+
+## 🚀 Key Features Matrix
 
 | Module | Core Capabilities |
 |---|---|
@@ -171,7 +187,6 @@ pytest tests/ -v
 
 ---
 
-## 👥 Authors & Acknowledgements
+## 👥 Authors & Team Contributions
 
-* **Team Nexus** — Cognizant NPN_SCM Hackathon 2026.
-* Built to bridge the gap between supply chain strategy and physical execution.
+Please refer to [`TEAM_CONTRIBUTIONS.md`](TEAM_CONTRIBUTIONS.md) for the detailed 6-person workload distribution across Architecture, Logistics Execution (E2), S&OP Planning (P2), Optimization, Frontend UI/UX, and QA/DevOps.
