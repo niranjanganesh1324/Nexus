@@ -1,5 +1,5 @@
-import { store } from "../store.js?v=8";
-import { ICONS, NAV } from "./helpers.js?v=8";
+import { store } from "../store.js?v=11";
+import { ICONS } from "./helpers.js?v=11";
 
 export function renderToasts() {
   const colors = { success: "#1FD9A0", info: "#38BDF8", warning: "#FFAB2E", error: "#FF5C5C" };
@@ -30,24 +30,24 @@ export function removeToast(id) {
 export function renderPalette() {
   if (!store.paletteOpen) return '';
   return `
-  <div style="position:fixed; inset:0; z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding-top:10vh;">
+  <div id="paletteOverlay" style="position:fixed; inset:0; z-index:999999; display:flex; align-items:flex-start; justify-content:center; padding-top:12vh; width:100vw; height:100vh;">
     <!-- Dark Backdrop -->
     <div class="backdrop-in" onclick="window.closePalette()"
-      style="position:absolute; inset:0; background:rgba(4,9,18,0.75); backdrop-filter:blur(8px);"></div>
+      style="position:absolute; inset:0; background:rgba(4,9,18,0.82); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); cursor:pointer;"></div>
 
     <!-- Modal Dialog -->
-    <div class="card-elevated anim-in"
-      style="position:relative; width:620px; max-width:92vw; border-radius:16px; overflow:hidden; border:1.5px solid var(--border); box-shadow:0 24px 60px rgba(0,0,0,0.65); background:linear-gradient(180deg, rgba(13,27,42,0.98), rgba(7,17,31,0.98));">
+    <div class="anim-in" onclick="event.stopPropagation()"
+      style="position:relative; z-index:1000000; width:620px; max-width:92vw; border-radius:18px; overflow:hidden; border:1.5px solid var(--border); box-shadow:0 30px 80px rgba(0,0,0,0.85); background:#0D1B2A;">
       
       <!-- Search Input Header -->
-      <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02);">
+      <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">
         <span style="color:var(--cyan); font-size:18px;">${ICONS.search}</span>
         <input id="paletteInput" value="${store.paletteQuery || ''}" oninput="window.onPaletteInput(this.value)"
           placeholder="Search modules, trucks, facilities, collections, docks, alerts…"
           style="flex:1; background:transparent; border:none; color:var(--text); font-size:15px; font-weight:600; outline:none;"
           autofocus />
         <kbd class="mono" onclick="window.closePalette()"
-          style="font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 8px; border-radius:6px; cursor:pointer; background:var(--bg2);">ESC</kbd>
+          style="font-size:10.5px; color:var(--text-muted); border:1px solid var(--border); padding:3px 8px; border-radius:6px; cursor:pointer; background:var(--bg);">ESC</kbd>
       </div>
 
       <!-- Results Body -->
@@ -56,9 +56,9 @@ export function renderPalette() {
       </div>
 
       <!-- Footer Help -->
-      <div style="padding:10px 18px; border-top:1px solid var(--border); background:rgba(0,0,0,0.25); display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
-        <span>Tip: Navigate directly to any truck, planning module, or dock</span>
-        <span class="mono">NEXUS Omni-Search</span>
+      <div style="padding:10px 18px; border-top:1px solid var(--border); background:rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-muted);">
+        <span>Tip: Press ESC to close or click any result to jump in</span>
+        <span class="mono" style="color:var(--cyan); font-weight:700;">NEXUS Omni-Search</span>
       </div>
     </div>
   </div>`;
@@ -131,7 +131,7 @@ export function renderPaletteResults() {
           { label: "📦 Summer Linen Inventory", page: "inventory" }
         ].map(s => `
           <button onclick="window.paletteNavigate('${s.page}', '${s.id || ''}')"
-            style="background:var(--bg2); border:1px solid var(--border); color:var(--text-sec); padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; transition:all 0.15s ease;"
+            style="background:var(--bg); border:1px solid var(--border); color:var(--text-sec); padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; transition:all 0.15s ease;"
             onmouseenter="this.style.borderColor='var(--cyan)'; this.style.color='var(--cyan)';"
             onmouseleave="this.style.borderColor='var(--border)'; this.style.color='var(--text-sec)';">
             ${s.label}

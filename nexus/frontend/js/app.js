@@ -1,19 +1,19 @@
-import { API } from "./api.js?v=10";
-import { store } from "./store.js?v=10";
-import { initRealtime } from "./realtime.js?v=10";
+import { API } from "./api.js?v=11";
+import { store } from "./store.js?v=11";
+import { initRealtime } from "./realtime.js?v=11";
 
-import { renderSidebar } from "./components/sidebar.js?v=10";
-import { renderHeader } from "./components/header.js?v=10";
-import { renderToasts, addToast, removeToast, renderPalette, renderPaletteResults } from "./components/toasts.js?v=10";
-import { NAV } from "./components/helpers.js?v=10";
+import { renderSidebar } from "./components/sidebar.js?v=11";
+import { renderHeader } from "./components/header.js?v=11";
+import { renderToasts, addToast, removeToast, renderPalette, renderPaletteResults } from "./components/toasts.js?v=11";
+import { NAV } from "./components/helpers.js?v=11";
 
-import { renderOverviewPage } from "./pages/overview.js?v=10";
-import { renderTrucksPage, initTrucksMap, updateTrucksLiveTelemetry, highlightTruckOnMap } from "./pages/trucks.js?v=10";
-import { renderYardPage } from "./pages/yard.js?v=10";
-import { renderAllocationPage } from "./pages/allocation.js?v=10";
-import { renderShipmentsPage } from "./pages/shipments.js?v=10";
-import { renderAlertsPage } from "./pages/alerts.js?v=10";
-import { renderSOPPage } from "./pages/sop.js?v=10";
+import { renderOverviewPage } from "./pages/overview.js?v=11";
+import { renderTrucksPage, initTrucksMap, updateTrucksLiveTelemetry, highlightTruckOnMap } from "./pages/trucks.js?v=11";
+import { renderYardPage } from "./pages/yard.js?v=11";
+import { renderAllocationPage } from "./pages/allocation.js?v=11";
+import { renderShipmentsPage } from "./pages/shipments.js?v=11";
+import { renderAlertsPage } from "./pages/alerts.js?v=11";
+import { renderSOPPage } from "./pages/sop.js?v=11";
 import { renderDemandPage } from "./pages/demand.js?v=9";
 import { renderInventoryPage } from "./pages/inventory.js?v=9";
 import { renderProcurementPage } from "./pages/procurement.js?v=9";
@@ -294,9 +294,9 @@ export function initApp() {
         <div id="mainRegion"></div>
       </div>
       <div id="drawerRegion"></div>
-      <div id="paletteRegion"></div>
-      <div id="toastRegion" style="position:fixed; bottom:20px; right:20px; z-index:70; display:flex; flex-direction:column; gap:10px; align-items:flex-end;"></div>
-    </div>`;
+    </div>
+    <div id="paletteRegion"></div>
+    <div id="toastRegion" style="position:fixed; bottom:20px; right:20px; z-index:70; display:flex; flex-direction:column; gap:10px; align-items:flex-end;"></div>`;
 
   renderAppShell();
   renderMainContent();
