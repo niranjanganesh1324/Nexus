@@ -1,0 +1,50 @@
+name: NEXUS CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: nexus_user
+          POSTGRES_PASSWORD: nexus_password
+          POSTGRES_DB: nexus_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        cd nexus/backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Seed Database
+      run: |
+        cd nexus/backend
+        PYTHONPATH=. python -m app.seed
+
+    - name: Run Pytest Suite
+      run: |
+        cd nexus/backend
+        PYTHONPATH=. pytest tests/ -v

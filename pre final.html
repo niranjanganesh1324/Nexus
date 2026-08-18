@@ -1,0 +1,2489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Supply Chain Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07111F; --bg2:#0D1B2A; --card:#10243A; --card-elevated:#17324D; --border:#294866;
+    --text:#F5F9FF; --text-sec:#A9BED1; --text-muted:#6F8AA3;
+    --cyan:#00D4C7; --blue:#55A6FF; --green:#43D38A; --amber:#FFB84D; --red:#FF6B7A; --purple:#9B7BFF;
+    --glass-bg:rgba(18,43,68,0.68); --glass-bg-strong:rgba(25,55,84,0.84);
+    --glass-border:rgba(132,185,224,0.18); --shadow-tint:rgba(0,212,199,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:0;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  ::-webkit-scrollbar{width:6px; height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ===== Aurora background — gives the glass something to refract ===== */
+  .aurora{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+  .blob{position:absolute; border-radius:50%; filter:blur(110px); opacity:0.28;}
+  .blob1{width:560px; height:560px; background:#00D4C7; top:-180px; left:-120px; animation:drift1 26s ease-in-out infinite;}
+  .blob2{width:480px; height:480px; background:#55A6FF; bottom:-200px; right:-10%; animation:drift2 30s ease-in-out infinite;}
+  .blob3{width:420px; height:420px; background:#9B7BFF; top:45%; left:60%; opacity:0.20; animation:drift3 34s ease-in-out infinite;}
+  @keyframes drift1{0%,100%{transform:translate(0,0);} 50%{transform:translate(70px,50px);}}
+  @keyframes drift2{0%,100%{transform:translate(0,0);} 50%{transform:translate(-60px,-40px);}}
+  @keyframes drift3{0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(1.2);}}
+  #root{position:relative; z-index:1;}
+
+  /* ===== Liquid glass + neobrutalism fusion ===== */
+  .card, .card-elevated, .glass{
+    position:relative; background:var(--glass-bg);
+    backdrop-filter:blur(20px) saturate(1.5); -webkit-backdrop-filter:blur(20px) saturate(1.5);
+    border:1.5px solid var(--glass-border); border-radius:18px; overflow:hidden;
+    box-shadow:5px 5px 0px 0px var(--shadow-tint, rgba(124,92,255,0.28)), 0 10px 26px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.09);
+    transition:transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card::before, .card-elevated::before{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
+    background:linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 42%);
+    animation:sheenShift 9s ease-in-out infinite;
+  }
+  .card > *, .card-elevated > *{ position:relative; z-index:1; }
+  @keyframes sheenShift{0%,100%{opacity:0.7; transform:translateX(-4%);} 50%{opacity:1; transform:translateX(4%);}}
+  .card:hover, .kpi-card:hover{
+    transform:translate(-3px,-3px);
+    box-shadow:8px 8px 0px 0px var(--shadow-tint, rgba(124,92,255,0.4)), 0 14px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+    border-color:rgba(255,255,255,0.32);
+  }
+  .card-elevated{background:var(--glass-bg-strong); border-radius:20px;}
+
+  .glass{border-radius:0; box-shadow:none;}
+  .glass::before{display:none;}
+  .glass::after{content:''; position:absolute; top:0; left:0; right:0; height:1px; z-index:2;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);}
+
+  @keyframes fadeUp{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  .anim-in{animation:fadeUp 0.45s ease forwards; opacity:0;}
+
+  @keyframes pulseDot{0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(31,217,160,0.5);} 50%{opacity:0.6; box-shadow:0 0 0 4px rgba(31,217,160,0);}}
+  .live-dot{animation:pulseDot 2s ease-in-out infinite; width:7px; height:7px; border-radius:50%; background:#34E2B0; display:inline-block; flex-shrink:0;}
+
+  @keyframes flowDot{0%{left:2%; opacity:0;} 8%{opacity:1;} 92%{opacity:1;} 100%{left:98%; opacity:0;}}
+  .flow-dot{animation:flowDot 3.2s linear infinite; position:absolute; top:-2.5px; width:7px; height:7px; border-radius:50%;}
+
+  @keyframes slideInDrawer{from{transform:translateX(100%);} to{transform:translateX(0);}}
+  .drawer-in{animation:slideInDrawer 0.28s cubic-bezier(.2,.8,.2,1) forwards;}
+
+  @keyframes fadeInBackdrop{from{opacity:0;} to{opacity:1;}}
+  .backdrop-in{animation:fadeInBackdrop 0.2s ease forwards;}
+
+  @keyframes toastIn{from{opacity:0; transform:translateX(30px);} to{opacity:1; transform:translateX(0);}}
+  .toast-in{animation:toastIn 0.3s cubic-bezier(.2,.8,.2,1) forwards;}
+
+  .kpi-card{transition:transform 0.2s ease, box-shadow 0.2s ease;}
+
+  .nav-item{transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:10px; cursor:pointer; margin-bottom:3px;
+    border:1.5px solid transparent; color:var(--text-sec);}
+  .nav-item:hover:not(.active){background:rgba(255,255,255,0.055) !important;}
+  .nav-item.active{background:rgba(91,140,255,0.16) !important; color:#A9D8FF !important; border-color:rgba(98,214,255,0.34); box-shadow:3px 3px 0px 0px rgba(98,214,255,0.18);}
+  .status-dot{width:7px; height:7px; border-radius:50%; display:inline-block;}
+
+  .badge{font-size:10.5px; font-weight:700; letter-spacing:0.3px; padding:4px 10px; border-radius:7px; text-transform:uppercase;
+    font-family:'JetBrains Mono',monospace; display:inline-block; border:1.5px solid currentColor; box-shadow:2px 2px 0px 0px currentColor;}
+
+  input:focus, select:focus, button:focus{outline:none;}
+  .focus-ring:focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
+  button{font-family:inherit; cursor:pointer; transition:transform 0.1s ease, filter 0.15s ease, box-shadow 0.1s ease;}
+  button:hover{filter:brightness(1.12);}
+  button:active{transform:translate(2px,2px) !important; filter:brightness(0.96);}
+
+  input, select{transition:border-color 0.15s ease, box-shadow 0.15s ease;}
+  input:focus, select:focus{border-color:#62D6FF !important; box-shadow:0 0 0 3px rgba(98,214,255,0.16) !important;}
+
+  table.data-table th{cursor:pointer; text-align:left; padding:8px 10px; font-size:10.5px; color:var(--text-muted); font-weight:700; letter-spacing:0.4px; text-transform:uppercase; border-bottom:1.5px solid var(--border); white-space:nowrap; transition:color 0.15s;}
+  table.data-table th:hover{color:#A9D8FF;}
+  table.data-table td{padding:10px; border-bottom:1px solid var(--border);}
+  table.data-table tr.data-row{cursor:pointer; transition:background 0.15s;}
+  table.data-table tr.data-row:hover{background:rgba(98,214,255,0.06);}
+
+  .app-shell{display:flex;}
+  .sidebar{transition:width 0.2s ease; display:flex; flex-direction:column; height:100vh; position:sticky; top:0; flex-shrink:0; border-right:1.5px solid var(--border); overflow:hidden;}
+  .header{position:sticky; top:0; z-index:20; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1.5px solid var(--border);}
+
+  /* ===== Midnight Ocean aesthetic refinement ===== */
+  .card, .card-elevated, .glass{
+    box-shadow:0 14px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .card:hover, .kpi-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 20px 52px rgba(0,0,0,.32), 0 0 0 1px rgba(98,214,255,.08);
+  }
+  .nav-item.active{
+    background:linear-gradient(90deg, rgba(91,140,255,.18), rgba(72,215,168,.10)) !important;
+    color:#DDF6FF !important;
+    box-shadow:inset 3px 0 0 #62D6FF;
+  }
+  .badge{box-shadow:none; border-radius:999px;}
+  .header{background:rgba(8,17,31,.72); backdrop-filter:blur(18px);}
+  .sidebar{background:linear-gradient(180deg, rgba(13,27,42,.92), rgba(8,17,31,.92));}
+
+
+/* --- Dock Door Assignment Schedule --- */
+.dock-schedule-panel{margin-top:22px;padding:20px;border:1px solid rgba(148,163,184,.22);border-radius:18px;background:linear-gradient(145deg,rgba(15,32,55,.95),rgba(9,20,37,.95));box-shadow:0 14px 35px rgba(0,0,0,.18)}
+.dock-schedule-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.dock-schedule-head h3{margin:0;font-size:18px}.dock-schedule-head p{margin:5px 0 0;color:#94a3b8;font-size:13px}
+.schedule-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#cbd5e1}
+.schedule-legend span{display:inline-flex;align-items:center;gap:6px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.legend-booked{background:#38bdf8}.legend-available{background:#34d399}.legend-maint{background:#f59e0b}
+.schedule-wrap{overflow-x:auto;padding-bottom:4px}
+.dock-schedule-grid{min-width:820px;display:grid;grid-template-columns:120px repeat(8,minmax(80px,1fr));border:1px solid rgba(148,163,184,.18);border-radius:14px;overflow:hidden}
+.sch-head,.sch-label,.sch-cell{min-height:58px;padding:10px;border-right:1px solid rgba(148,163,184,.13);border-bottom:1px solid rgba(148,163,184,.13);display:flex;align-items:center}
+.sch-head{justify-content:center;font-size:12px;font-weight:700;color:#cbd5e1;background:rgba(255,255,255,.035)}
+.sch-label{font-weight:800;color:#f8fafc;background:rgba(255,255,255,.025)}
+.sch-cell{position:relative;justify-content:center;font-size:11px;color:#94a3b8;background:rgba(255,255,255,.012);transition:.2s}
+.sch-cell.available{color:#6ee7b7}.sch-cell.maintenance{color:#fbbf24;background:rgba(245,158,11,.08)}
+.sch-cell.assigned{background:rgba(56,189,248,.14);color:#e0f2fe;font-weight:700;cursor:pointer}
+.sch-cell.assigned:hover{transform:scale(1.02);box-shadow:inset 0 0 0 1px rgba(125,211,252,.7)}
+.schedule-slot-title{font-weight:800;font-size:11px}.schedule-slot-sub{font-size:9px;opacity:.8;margin-top:2px}
+.schedule-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.schedule-actions button{border:1px solid rgba(125,211,252,.3);background:rgba(56,189,248,.12);color:#e0f2fe;padding:9px 13px;border-radius:10px;font-weight:700;cursor:pointer}
+.schedule-summary{margin-top:14px;padding:13px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.18);font-size:13px;color:#d1fae5}
+@media(max-width:700px){.dock-schedule-panel{padding:14px}.schedule-summary{font-size:12px}}
+
+
+/* --- Trailer-to-Door Allocation Summary --- */
+.allocation-panel{margin-top:22px;padding:20px;border:1px solid rgba(148,163,184,.22);border-radius:18px;background:linear-gradient(145deg,rgba(14,30,52,.96),rgba(8,18,33,.96));box-shadow:0 14px 35px rgba(0,0,0,.18)}
+.allocation-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:15px}
+.allocation-head h3{margin:0;font-size:18px}.allocation-head p{margin:5px 0 0;color:#94a3b8;font-size:13px}
+.allocation-count{padding:7px 11px;border-radius:999px;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.22);font-size:12px;color:#bae6fd}
+.allocation-table-wrap{overflow-x:auto}
+.allocation-table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid rgba(148,163,184,.16);border-radius:13px}
+.allocation-table th{padding:11px 13px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;background:rgba(255,255,255,.035);border-bottom:1px solid rgba(148,163,184,.14)}
+.allocation-table td{padding:12px 13px;font-size:12px;color:#dbeafe;border-bottom:1px solid rgba(148,163,184,.10);white-space:nowrap}
+.allocation-table tr:last-child td{border-bottom:0}.allocation-table tr:hover td{background:rgba(255,255,255,.025)}
+.alloc-door{font-weight:900;color:#7dd3fc}.alloc-window{color:#cbd5e1}.alloc-empty{color:#94a3b8;text-align:center;padding:20px!important}
+.status-pill{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.02em}
+.status-assigned{background:rgba(56,189,248,.14);color:#bae6fd}.status-atdock{background:rgba(52,211,153,.14);color:#a7f3d0}.status-scheduled{background:rgba(167,139,250,.14);color:#ddd6fe}.status-reassign{background:rgba(251,146,60,.14);color:#fed7aa}
+
+</style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>.leaflet-container{font-family:Inter,Arial,sans-serif}.real-map-marker{background:transparent;border:0}.truck-badge{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:14px;font-weight:800}.facility-badge{width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;color:#fff;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}.facility-badge span{transform:rotate(45deg);font-size:13px;font-weight:800}
+  /* ===== Midnight Ocean aesthetic refinement ===== */
+  .card, .card-elevated, .glass{
+    box-shadow:0 14px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .card:hover, .kpi-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 20px 52px rgba(0,0,0,.32), 0 0 0 1px rgba(98,214,255,.08);
+  }
+  .nav-item.active{
+    background:linear-gradient(90deg, rgba(91,140,255,.18), rgba(72,215,168,.10)) !important;
+    color:#DDF6FF !important;
+    box-shadow:inset 3px 0 0 #62D6FF;
+  }
+  .badge{box-shadow:none; border-radius:999px;}
+  .header{background:rgba(8,17,31,.72); backdrop-filter:blur(18px);}
+  .sidebar{background:linear-gradient(180deg, rgba(13,27,42,.92), rgba(8,17,31,.92));}
+
+
+/* NEXUS 10/10 hardening: responsive layout + evaluator-focused decision visuals */
+.nexus-yard-page{display:flex;flex-direction:column;gap:18px;padding:22px 26px 56px;min-width:0;overflow-x:hidden}.nexus-yard-head{display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap}.nexus-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}.nexus-yard-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px;min-width:0}.nexus-yard-grid-secondary{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:18px;min-width:0}.nexus-scorecard{display:flex;flex-direction:column;gap:9px;margin-top:16px}.nexus-score-row{display:grid;grid-template-columns:110px 1fr 45px;gap:8px;align-items:center;font-size:10.5px;color:var(--text-sec)}.nexus-score-row b{text-align:right;color:var(--text)}.nexus-score-track{height:7px;border-radius:999px;background:var(--bg2);overflow:hidden}.nexus-score-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cyan),#7C5CFF)}.nexus-reason,.nexus-whatif-result{margin-top:14px;padding:11px;border:1px solid var(--border);background:var(--bg2);border-radius:10px;font-size:10.5px;color:var(--text-sec);line-height:1.5}.nexus-primary-btn,.nexus-secondary-btn,.nexus-danger-btn{cursor:pointer;font-weight:800;border-radius:9px;padding:10px 14px}.nexus-primary-btn{margin-top:14px;width:100%;border:0;background:var(--cyan);color:#06131d}.nexus-secondary-btn{margin-top:14px;border:1px solid var(--border);background:transparent;color:var(--text-sec)}.nexus-danger-btn{border:1px solid #FF7A7A66;background:rgba(255,92,92,.08);color:#FF9AA3}.nexus-timeline-row{display:grid;grid-template-columns:42px minmax(80px,1fr) 110px;gap:10px;align-items:center;font-size:10.5px}.nexus-timebar{height:13px;background:var(--bg2);border-radius:99px;position:relative;overflow:hidden}.nexus-timebar i{position:absolute;top:0;height:100%;border-radius:99px}.nexus-timebar i.busy{background:#FFAB2E}.nexus-timebar i.free{background:#34E2B0}.nexus-conflict{min-height:140px}.card,.impact-card,.nexus-decision{min-width:0;overflow-wrap:anywhere}@media(max-width:980px){.nexus-yard-grid,.nexus-yard-grid-secondary{grid-template-columns:1fr}.nexus-yard-page{padding:18px 16px 42px}}@media(max-width:620px){.nexus-yard-page{padding:14px 10px 36px;gap:12px}.nexus-yard-head{align-items:flex-start}.nexus-danger-btn{width:100%}.nexus-score-row{grid-template-columns:95px 1fr 42px}.nexus-timeline-row{grid-template-columns:36px 1fr}.nexus-timeline-row span{grid-column:2;font-size:9.5px}.nexus-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}table{display:block;max-width:100%;overflow-x:auto}}
+</style>
+</head>
+
+<body>
+<div class="aurora">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+<div id="root"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+/* ===== Dock-Door Assignment Schedule ===== */
+(function(){
+  const scheduleState = window.NEXUS_DOCK_SCHEDULE = window.NEXUS_DOCK_SCHEDULE || {
+    startHour: 14,
+    slots: ["14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"],
+    selectedTruckId: null,
+    assignments: {
+      "D01":[{truckId:"TRK-101", trailerId:"TLR-7101", start:0, end:2}],
+      "D02":[{truckId:"TRK-104", trailerId:"TLR-8821", start:1, end:3}],
+      "D03":[{truckId:"TRK-110", trailerId:"TLR-5110", start:4, end:6}],
+      "D04":[{truckId:"TRK-108", trailerId:"TLR-7762", start:0, end:2}],
+      "D05":[],
+      "D06":[{truckId:"TRK-115", trailerId:"TLR-9015", start:5, end:7}],
+      "D07":[]
+    },
+    maintenance: {"D04":[4,5]}
+  };
+
+  function getTruck(id){
+    try{
+      if(Array.isArray(window.TRUCKS)) return window.TRUCKS.find(t => t.truckId===id || t.id===id);
+    }catch(e){}
+    return null;
+  }
+  function getTrailer(id){
+    const t=getTruck(id); return t?.trailerId || t?.trailer || scheduleState.assignments && Object.values(scheduleState.assignments).flat().find(x=>x.truckId===id)?.trailerId || "—";
+  }
+  function dockIds(){
+    if(Array.isArray(window.DOCKS) && window.DOCKS.length) return window.DOCKS.map(d=>d.id);
+    return Object.keys(scheduleState.assignments);
+  }
+  function render(){
+    const grid=document.getElementById('dockScheduleGrid');
+    if(!grid) return;
+    grid.innerHTML='';
+    const head=document.createElement('div'); head.className='sch-head'; head.textContent='Dock Door'; grid.appendChild(head);
+    scheduleState.slots.forEach(slot=>{const c=document.createElement('div');c.className='sch-head';c.textContent=slot;grid.appendChild(c);});
+    dockIds().forEach(dockId=>{
+      const label=document.createElement('div'); label.className='sch-label'; label.textContent=dockId; grid.appendChild(label);
+      for(let i=0;i<scheduleState.slots.length;i++){
+        const cell=document.createElement('div'); cell.className='sch-cell available';
+        const maint=(scheduleState.maintenance[dockId]||[]).includes(i);
+        const a=(scheduleState.assignments[dockId]||[]).find(x=>i>=x.start && i<x.end);
+        if(maint){cell.className='sch-cell maintenance';cell.textContent='Maintenance';}
+        else if(a){
+          cell.className='sch-cell assigned';
+          cell.dataset.truckId=a.truckId; cell.dataset.dockId=dockId;
+          cell.innerHTML='<div><div class="schedule-slot-title">'+htmlEscape(a.truckId)+'</div><div class="schedule-slot-sub">'+htmlEscape(a.trailerId || getTrailer(a.truckId))+'</div></div>';
+          cell.onclick=()=>selectScheduleAssignment(a.truckId,dockId,i);
+        } else cell.textContent='Available';
+        grid.appendChild(cell);
+      }
+    });
+    updateSummary();
+  }
+  function htmlEscape(v){return String(v||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function updateSummary(){
+    const el=document.getElementById('dockScheduleSummary'); if(!el)return;
+    const id=scheduleState.selectedTruckId;
+    if(!id){el.textContent='Select an incoming truck to view its recommended door and reserved arrival window.';return;}
+    const found=Object.entries(scheduleState.assignments).flatMap(([dock,arr])=>arr.map(a=>({...a,dock}))).find(a=>a.truckId===id);
+    if(found){
+      el.innerHTML='<strong>'+htmlEscape(id)+'</strong> → Trailer <strong>'+htmlEscape(found.trailerId || getTrailer(id))+'</strong> is allocated to <strong>'+htmlEscape(found.dock)+'</strong> from <strong>'+scheduleState.slots[found.start]+'</strong> to <strong>'+scheduleState.slots[Math.min(found.end,scheduleState.slots.length-1)]+'</strong>.';
+    } else el.innerHTML='<strong>'+htmlEscape(id)+'</strong> currently has no reserved dock slot. Assign the recommended dock to create an allocation.';
+  }
+  window.selectScheduleAssignment=function(truckId,dockId){
+    scheduleState.selectedTruckId=truckId; updateSummary();
+    document.querySelectorAll('.sch-cell.assigned').forEach(x=>x.style.outline='none');
+    const cell=[...document.querySelectorAll('.sch-cell.assigned')].find(x=>x.dataset.truckId===truckId && x.dataset.dockId===dockId);
+    if(cell) cell.style.outline='2px solid rgba(125,211,252,.95)';
+    try{ if(typeof window.selectTruck==='function') window.selectTruck(truckId); }catch(e){}
+  };
+  window.refreshDockSchedule=function(){render();};
+  window.showSelectedAllocation=function(){updateSummary(); document.getElementById('dockScheduleSummary')?.scrollIntoView({behavior:'smooth',block:'nearest'});};
+
+  // Public helper: call this after any dock assignment in the existing app.
+  window.addDockScheduleAssignment=function(truckId,dockId,startIndex,durationSlots=2){
+    if(!scheduleState.assignments[dockId]) scheduleState.assignments[dockId]=[];
+    const trailerId=getTrailer(truckId);
+    const end=Math.min(startIndex+durationSlots,scheduleState.slots.length);
+    scheduleState.assignments[dockId]=scheduleState.assignments[dockId].filter(a=>a.truckId!==truckId);
+    scheduleState.assignments[dockId].push({truckId,trailerId,start:startIndex,end});
+    scheduleState.selectedTruckId=truckId; render();
+  };
+
+  document.addEventListener('DOMContentLoaded',render);
+  setTimeout(render,500);
+})();
+
+
+/* ===== Trailer-to-Door Allocation Summary ===== */
+(function(){
+  function esc(v){return String(v ?? "—").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function statusClass(v){
+    const x=String(v||'').toLowerCase().replace(/\s+/g,'');
+    if(x.includes('atdock')) return 'status-atdock';
+    if(x.includes('reassign')) return 'status-reassign';
+    if(x.includes('assign')) return 'status-assigned';
+    return 'status-scheduled';
+  }
+  function truckData(id){
+    try{
+      if(Array.isArray(window.TRUCKS)) return window.TRUCKS.find(t=>t.truckId===id || t.id===id) || {};
+    }catch(e){}
+    return {};
+  }
+  function renderAllocationSummary(){
+    const body=document.getElementById('trailerAllocationBody');
+    const count=document.getElementById('allocationCount');
+    if(!body || !window.NEXUS_DOCK_SCHEDULE) return;
+    const st=window.NEXUS_DOCK_SCHEDULE;
+    const rows=[];
+    Object.entries(st.assignments||{}).forEach(([dock,arr])=>{
+      (arr||[]).forEach(a=>{
+        const t=truckData(a.truckId);
+        const start=st.slots?.[a.start] || '—';
+        const end=st.slots?.[Math.min(a.end, (st.slots?.length||1)-1)] || '—';
+        const shipment=t.shipmentId || t.shipment || ({
+          "TRK-101":"SHP-2001","TRK-104":"SHP-2048","TRK-108":"SHP-2051","TRK-110":"SHP-2058","TRK-115":"SHP-2063"
+        }[a.truckId] || '—');
+        const load=t.loadType || t.load || ({
+          "TRK-104":"Refrigerated","TRK-108":"General","TRK-110":"General","TRK-115":"General","TRK-101":"General"
+        }[a.truckId] || 'General');
+        const priority=t.priority || (a.truckId==="TRK-104"||a.truckId==="TRK-108"?"High":"Medium");
+        const raw=t.status || (a.truckId==="TRK-104"?"Assigned":"Scheduled");
+        const status=String(raw).toLowerCase().includes('dock') && String(raw).toLowerCase().includes('at') ? 'At Dock' :
+                     String(raw).toLowerCase().includes('assign') ? 'Assigned' : 'Scheduled';
+        rows.push({trailer:a.trailerId||t.trailerId||t.trailer||'—',truck:a.truckId,shipment,dock,start,end,load,priority,status});
+      });
+    });
+    rows.sort((a,b)=>a.start.localeCompare(b.start));
+    body.innerHTML=rows.length ? rows.map(r=>`
+      <tr>
+        <td><strong>${esc(r.trailer)}</strong></td>
+        <td>${esc(r.truck)}</td>
+        <td>${esc(r.shipment)}</td>
+        <td><span class="alloc-door">${esc(r.dock)}</span></td>
+        <td class="alloc-window">${esc(r.start)} – ${esc(r.end)}</td>
+        <td>${esc(r.load)}</td>
+        <td>${esc(r.priority)}</td>
+        <td><span class="status-pill ${statusClass(r.status)}">${esc(r.status)}</span></td>
+      </tr>`).join('') : '<tr><td colspan="8" class="alloc-empty">No trailer-to-door allocations available yet.</td></tr>';
+    if(count) count.textContent=`${rows.length} active allocation${rows.length===1?'':'s'}`;
+  }
+  window.renderTrailerAllocationSummary=renderAllocationSummary;
+  const originalAdd=window.addDockScheduleAssignment;
+  if(typeof originalAdd==='function'){
+    window.addDockScheduleAssignment=function(){
+      const result=originalAdd.apply(this,arguments);
+      setTimeout(renderAllocationSummary,0);
+      return result;
+    };
+  }
+  document.addEventListener('DOMContentLoaded',renderAllocationSummary);
+  setTimeout(renderAllocationSummary,700);
+  setInterval(renderAllocationSummary,4000);
+})();
+
+</script>
+
+<section class="dock-schedule-panel" id="dockSchedulePanel">
+  <div class="dock-schedule-head">
+    <div>
+      <h3>Dock-Door Assignment Schedule</h3>
+      <p>Arrival windows and door occupancy for the next 4 hours. Select a booked slot to inspect the trailer allocation.</p>
+    </div>
+    <div class="schedule-legend">
+      <span><i class="legend-dot legend-booked"></i> Assigned</span>
+      <span><i class="legend-dot legend-available"></i> Available</span>
+      <span><i class="legend-dot legend-maint"></i> Maintenance</span>
+    </div>
+  </div>
+  <div class="schedule-wrap"><div class="dock-schedule-grid" id="dockScheduleGrid"></div></div>
+  <div class="schedule-actions">
+    <button type="button" onclick="refreshDockSchedule()">↻ Refresh Schedule</button>
+    <button type="button" onclick="showSelectedAllocation()">◎ Show Selected Allocation</button>
+  </div>
+  <div class="schedule-summary" id="dockScheduleSummary">Select an incoming truck to view its recommended door and reserved arrival window.</div>
+</section>
+
+
+<section class="allocation-panel" id="trailerAllocationPanel">
+  <div class="allocation-head">
+    <div>
+      <h3>Trailer-to-Door Allocation Summary</h3>
+      <p>A single operational view of every trailer, its shipment, assigned dock door and scheduled handling window.</p>
+    </div>
+    <div class="allocation-count" id="allocationCount">0 active allocations</div>
+  </div>
+  <div class="allocation-table-wrap">
+    <table class="allocation-table">
+      <thead><tr>
+        <th>Trailer ID</th><th>Truck ID</th><th>Shipment</th><th>Dock Door</th><th>Arrival / Handling Window</th><th>Load Type</th><th>Priority</th><th>Status</th>
+      </tr></thead>
+      <tbody id="trailerAllocationBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+/* ============================== ICONS (plain SVG strings) ============================== */
+const ICONS = {
+  overview: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+  sop: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6" fill="currentColor"/></svg>`,
+  demand: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg>`,
+  inventory: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`,
+  shipments: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="13" height="8" rx="1"/><path d="M15 11h3l3 3v2h-6z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg>`,
+  truck: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6v10h11V6H4z"/><path d="M15 10h3l2.5 3v3H15z"/><circle cx="7.5" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>`,
+  dock: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-6 9 6v11"/><path d="M9 21v-8h6v8"/></svg>`,
+  alerts: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>`,
+  scenarios: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="16" cy="6" r="1.8" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>`,
+  reports: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`,
+  chevronLeft: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`,
+  chevronRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`,
+  search: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>`,
+  x: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
+  bell: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 004 0"/></svg>`,
+  gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
+};
+
+/* ============================== MOCK DATA ============================== */
+const FACILITIES = ["All Facilities","Chennai DC","Bangalore DC","Mumbai DC","Hyderabad DC"];
+
+const TRUCKS = [
+  {id:"TRK-101", shipment:"SHP-2045", origin:"Mumbai Plant", dest:"Mumbai DC", load:640, eta:"13:10", status:"On Time", dock:"D01", priority:"Medium"},
+  {id:"TRK-102", shipment:"SHP-2046", origin:"Bangalore Plant", dest:"Bangalore DC", load:720, eta:"12:55", status:"Arrived", dock:"D02", priority:"Medium"},
+  {id:"TRK-103", shipment:"SHP-2047", origin:"Hyderabad Plant", dest:"Chennai DC", load:510, eta:"15:20", status:"At Risk", dock:"—", priority:"High"},
+  {id:"TRK-104", shipment:"SHP-2048", origin:"Chennai Plant", dest:"Bangalore DC", load:850, eta:"14:35", status:"Delayed", dock:"D04", priority:"High"},
+  {id:"TRK-105", shipment:"SHP-2049", origin:"Bangalore Plant", dest:"Hyderabad DC", load:390, eta:"16:05", status:"On Time", dock:"D05", priority:"Low"},
+  {id:"TRK-106", shipment:"SHP-2050", origin:"Chennai Plant", dest:"Chennai DC", load:600, eta:"13:45", status:"On Time", dock:"D03", priority:"Medium"},
+  {id:"TRK-107", shipment:"SHP-2051", origin:"Mumbai Plant", dest:"Bangalore DC", load:480, eta:"17:10", status:"On Time", dock:"—", priority:"Low"},
+  {id:"TRK-108", shipment:"SHP-2052", origin:"Hyderabad Plant", dest:"Mumbai DC", load:710, eta:"14:00", status:"At Risk", dock:"—", priority:"High"},
+];
+
+const ALERTS = [
+  {sev:"critical", title:"Demand Surge", desc:"Sportswear demand increased 21% in South region.", impact:"Potential inventory shortfall in 4 days.", action:"Review production plan", source:"Demand"},
+  {sev:"warning", title:"Shipment Delay", desc:"TRK-104 is 32 minutes behind schedule.", impact:"Dock D04 allocation may be affected.", action:"Reassign dock", source:"Shipment"},
+  {sev:"caution", title:"Capacity Risk", desc:"Chennai DC dock utilization expected to exceed 90% at 16:00.", impact:"Potential yard congestion during peak window.", action:"View yard", source:"Dock"},
+];
+
+const SKUS = [
+  {name:"Classic Tee", demand:2400, inventory:1850, coverage:7.2, risk:"High", rec:"Increase production"},
+  {name:"Running Shoes", demand:1200, inventory:2100, coverage:14.5, risk:"Low", rec:"No action"},
+  {name:"Winter Jacket", demand:900, inventory:400, coverage:4.1, risk:"Critical", rec:"Expedite"},
+  {name:"Sports Shorts", demand:1650, inventory:1400, coverage:8.6, risk:"Medium", rec:"Monitor"},
+  {name:"Performance Hoodie", demand:2050, inventory:980, coverage:5.3, risk:"High", rec:"Increase production"},
+];
+
+const PLANT_CAPACITY = [
+  {name:"Chennai", util:82, planned:11800, available:2100, constraint:"Labor shift limit", leadTime:"3 days"},
+  {name:"Bangalore", util:91, planned:9200, available:600, constraint:"Machine capacity", leadTime:"4 days"},
+  {name:"Mumbai", util:67, planned:7400, available:3600, constraint:"None", leadTime:"2 days"},
+  {name:"Hyderabad", util:76, planned:8100, available:2500, constraint:"Raw material lead time", leadTime:"5 days"},
+];
+
+const ALERTS_FULL = [
+  {sev:"Critical", cat:"Demand", time:"11:42", title:"Demand Surge", desc:"Sportswear demand increased 21% in South region.", impact:"Potential inventory shortfall in 4 days.", action:"Review production plan", status:"Open"},
+  {sev:"High", cat:"Shipment", time:"12:15", title:"Shipment Delay", desc:"TRK-104 is 32 minutes behind schedule.", impact:"Dock D04 allocation may be affected.", action:"Reassign dock", status:"Open"},
+  {sev:"Medium", cat:"Dock", time:"09:58", title:"Capacity Risk", desc:"Chennai DC dock utilization expected to exceed 90% at 16:00.", impact:"Potential yard congestion during peak window.", action:"View yard", status:"Open"},
+  {sev:"High", cat:"Production", time:"08:20", title:"Capacity Constraint", desc:"Bangalore plant utilization at 91%, nearing ceiling.", impact:"Limited buffer for unplanned demand spikes.", action:"Review capacity", status:"Open"},
+  {sev:"Medium", cat:"Inventory", time:"07:44", title:"Low Coverage — Winter Jacket", desc:"Inventory coverage down to 4.1 days.", impact:"Risk of stockout within the week.", action:"Expedite replenishment", status:"Open"},
+  {sev:"Critical", cat:"Truck", time:"Yesterday", title:"Route Deviation", desc:"TRK-108 deviated from planned route near Hyderabad.", impact:"ETA uncertainty for SHP-2052.", action:"Contact driver", status:"Resolved"},
+  {sev:"Low", cat:"Demand", time:"Yesterday", title:"Forecast Variance", desc:"Running Shoes forecast missed by 6% last cycle.", impact:"Minor overstock risk.", action:"Adjust forecast model", status:"Resolved"},
+  {sev:"High", cat:"Dock", time:"2 days ago", title:"Dock Downtime", desc:"D07 flagged for maintenance.", impact:"Reduced yard throughput during repair window.", action:"Schedule technician", status:"Resolved"},
+];
+
+function genSeries(days){
+  const out = [];
+  for(let i=0;i<days;i++){
+    const seasonal = Math.sin(i/9)*420 + Math.sin(i/23)*260;
+    const demand = 10200 + seasonal + ((i*37)%530) - 260;
+    const forecast = demand + 180 + ((i*13)%240) - 120;
+    const prod = 9800 + Math.sin(i/14)*380 + ((i*19)%300) - 150;
+    const planned = prod + 260 + ((i*7)%200) - 100;
+    out.push({day:i, demand:Math.round(demand), forecast:Math.round(forecast), production:Math.round(prod), planned:Math.round(planned)});
+  }
+  return out;
+}
+const SERIES_90 = genSeries(90);
+const SPARKLINES = {
+  demand:   [10,12,11,14,13,16,15,18,17,19],
+  inventory:[15,14,16,13,14,12,13,11,12,11],
+  capacity: [78,80,79,82,81,83,80,82,84,82],
+  shipments:[19,20,21,20,22,23,22,24,23,24],
+  risk:     [1,2,2,3,2,3,4,3,3,3],
+  dock:     [65,68,70,69,72,71,73,72,75,74],
+};
+
+// Stylized (non-literal) relative map coordinates for the logistics network
+const CITY_COORDS = {
+  "Mumbai Plant":{x:100,y:170}, "Mumbai DC":{x:145,y:205},
+  "Hyderabad Plant":{x:415,y:150}, "Hyderabad DC":{x:460,y:180},
+  "Bangalore Plant":{x:310,y:375}, "Bangalore DC":{x:355,y:405},
+  "Chennai Plant":{x:545,y:395}, "Chennai DC":{x:590,y:425},
+};
+
+const DOCKS = {
+  D01:{status:"Occupied", truck:"TRK-101", zone:"A", supported:["General","Express"], distance:2, availableIn:34},
+  D02:{status:"Available", truck:null, zone:"A", supported:["General","Express","Refrigerated"], distance:3, availableIn:0},
+  D03:{status:"Occupied", truck:"TRK-106", zone:"B", supported:["General","Fragile"], distance:1, availableIn:18},
+  D04:{status:"Occupied", truck:"TRK-104", zone:"B", supported:["General","Express"], distance:2, availableIn:41},
+  D05:{status:"Occupied", truck:"TRK-105", zone:"C", supported:["General","Fragile","Refrigerated"], distance:4, availableIn:26},
+  D06:{status:"Available", truck:null, zone:"C", supported:["General","Fragile","Refrigerated"], distance:5, availableIn:0},
+  D07:{status:"Maintenance", truck:null, zone:"C", supported:["General"], distance:6, availableIn:999}
+};
+
+// Prototype enrichment: trailer identity, load handling requirements and arrival windows.
+const LOAD_TYPES = ["General","Express","Fragile","Refrigerated"];
+TRUCKS.forEach((t,i)=>{
+  t.trailer = `TLR-${8832+i*37}`;
+  t.loadType = LOAD_TYPES[i % LOAD_TYPES.length];
+  t.arrivalWindow = ["12:45–13:15","13:00–13:30","14:50–15:30","14:15–14:50","15:45–16:20","13:30–14:00","16:50–17:30","13:45–14:20"][i];
+  t.yardStatus = t.status==="Arrived" ? "At Dock" : (i===3 ? "Approaching Gate" : "In Transit");
+});
+
+let YARD_EVENTS = [
+  {time:"12:08:14", icon:"📡", type:"WMS", text:"Yard feed synchronized — 7 dock doors monitored"},
+  {time:"12:15:02", icon:"⚠️", type:"Exception", text:"TRK-104 delay detected; ETA updated by +32 min"},
+  {time:"12:16:18", icon:"🧠", type:"Decision", text:"Dock recommendation refreshed for incoming high-priority loads"},
+  {time:"12:18:41", icon:"🚚", type:"Arrival", text:"TRK-102 confirmed at facility and trailer identified"},
+];
+
+
+// Live simulation state per truck (mutated over time to feel alive)
+const TRACK_STATE = {};
+function initTrackState(){
+  const seed = {
+    "TRK-101":{progress:62, speed:54, totalKm:320, delayMin:0},
+    "TRK-102":{progress:100, speed:0,  totalKm:290, delayMin:0},
+    "TRK-103":{progress:38, speed:41, totalKm:410, delayMin:14},
+    "TRK-104":{progress:71, speed:48, totalKm:250, delayMin:32},
+    "TRK-105":{progress:45, speed:57, totalKm:300, delayMin:0},
+    "TRK-106":{progress:80, speed:52, totalKm:270, delayMin:0},
+    "TRK-107":{progress:15, speed:60, totalKm:350, delayMin:0},
+    "TRK-108":{progress:55, speed:39, totalKm:380, delayMin:19},
+  };
+  TRUCKS.forEach(t=>{
+    const s = seed[t.id];
+    TRACK_STATE[t.id] = {
+      progress:s.progress, speed:s.speed, totalKm:s.totalKm,
+      distRemaining: Math.round(s.totalKm*(1-s.progress/100)),
+      delayMin:s.delayMin,
+    };
+  });
+}
+initTrackState();
+
+let trackingSimInterval = null;
+function startTrackingSim(){
+  stopTrackingSim();
+  trackingSimInterval = setInterval(tickTrackingSim, 2500);
+}
+function stopTrackingSim(){
+  if(trackingSimInterval){ clearInterval(trackingSimInterval); trackingSimInterval = null; }
+}
+function tickTrackingSim(){
+  TRUCKS.forEach(t=>{
+    const s = TRACK_STATE[t.id];
+    if(t.status==="Arrived" || s.progress>=100) return;
+    s.progress = Math.min(100, s.progress + 1 + Math.random()*2.2);
+    s.distRemaining = Math.max(0, Math.round(s.totalKm*(1-s.progress/100)));
+    s.speed = Math.max(28, Math.min(72, Math.round(s.speed + (Math.random()*10-5))));
+    if(s.progress>=100){ t.status="Arrived"; s.speed=0; s.distRemaining=0; }
+    // update marker position on map directly
+    const marker = document.getElementById('map-truck-'+t.id);
+    if(marker){
+      const pos = truckPosition(t);
+      marker.setAttribute('cx', pos.x); marker.setAttribute('cy', pos.y);
+      marker.setAttribute('fill', truckMarkerColor(t.status));
+    }
+  });
+  // update live fields for the currently selected truck, if on tracking page
+  if(state.page==='trucks' && state.trackingSelectedId){
+    updateTrackingRightPanelLive();
+  }
+}
+function truckPosition(t){
+  const o = CITY_COORDS[t.origin], d = CITY_COORDS[t.dest];
+  const s = TRACK_STATE[t.id];
+  const p = s.progress/100;
+  return { x: o.x + (d.x-o.x)*p, y: o.y + (d.y-o.y)*p };
+}
+function truckMarkerColor(status){
+  return status==="Delayed" ? "#FF7A7A" : status==="At Risk" ? "#FFC94D" : status==="Arrived" ? "#5CC8FF" : "#34E2B0";
+}
+
+const NAV = [
+  {key:"overview", label:"Overview", icon:ICONS.overview},
+  {key:"sop", label:"S&OP Planning", icon:ICONS.sop},
+  {key:"demand", label:"Demand", icon:ICONS.demand},
+  {key:"inventory", label:"Inventory", icon:ICONS.inventory},
+  {key:"procurement", label:"Fabric & Procurement", icon:ICONS.inventory},
+  {key:"markdown", label:"Markdown Intelligence", icon:ICONS.demand},
+  {key:"financial", label:"Financial Impact", icon:ICONS.reports},
+  {key:"shipments", label:"Shipments", icon:ICONS.shipments},
+  {key:"trucks", label:"Truck Tracking", icon:ICONS.truck},
+  {key:"yard", label:"Yard & Docks", icon:ICONS.dock},
+  {key:"alerts", label:"Alerts", icon:ICONS.alerts},
+  {key:"scenarios", label:"Scenarios", icon:ICONS.scenarios},
+  {key:"decision", label:"Decision Center", icon:ICONS.sop},
+  {key:"reports", label:"Reports", icon:ICONS.reports},
+];
+const PAGE_META = {
+  overview:["Supply Chain Control Tower","End-to-end visibility across demand, production, inventory and logistics."],
+  sop:["Integrated S&OP","Align demand, supply, production and inventory."],
+  demand:["Demand Planning","Forecast accuracy, seasonality and leading indicators."],
+  inventory:["Inventory Planning","SKU-level coverage, risk and recommendations."],
+  procurement:["Fabric & Procurement","Optimize MOQ, lead time and supplier risk before production is released."],
+  markdown:["Markdown Intelligence","Use sell-through, inventory and season timing to recommend action."],
+  financial:["Financial Impact","Compare revenue, cost, margin and inventory implications across scenarios."],
+  shipments:["Shipments","Track every active shipment across the network."],
+  trucks:["Where's My Truck?","Live visibility across inbound and outbound logistics."],
+  yard:["Yard & Dock Operations","Real-time dock availability and assignment."],
+  alerts:["Alerts & Exceptions","Everything that needs operational attention."],
+  scenarios:["Scenario Planning","Simulate supply chain decisions before committing."],
+  decision:["Cross-Functional Decision Center","Convert planning and execution exceptions into coordinated actions."],
+  reports:["Reports","Executive performance reporting."],
+};
+
+/* ============================== STATE ============================== */
+const state = {
+  page:"overview", collapsed:false, facility:"All Facilities",
+  selectedTruck:null, paletteOpen:false, paletteQuery:"",
+  toasts:[], secondsAgo:3,
+  sortKey:null, sortDir:1, tableQuery:"",
+  chartRange:30, trackingSelectedId:null, mapZoom:1,
+  scenario:{demandIncrease:0, prodCapacityChange:0, transportDelay:0, leadTime:7},
+  sopTab:"supply", inventoryScenario:"base", inventorySelected:"Summer Linen", alertSevFilter:"All", alertCatFilter:"All", reportsRange:"30d", yardSelectedId:"TRK-104",
+};
+
+/* ============================== HELPERS ============================== */
+function statusColors(status){
+  const map = {
+    "On Time":{bg:"rgba(31,217,160,0.15)", fg:"#34E2B0"},
+    "Delayed":{bg:"rgba(255,92,92,0.15)", fg:"#FF7A7A"},
+    "At Risk":{bg:"rgba(255,171,46,0.15)", fg:"#FFC94D"},
+    "Arrived":{bg:"rgba(56,189,248,0.15)", fg:"#5CC8FF"},
+  };
+  return map[status] || map["On Time"];
+}
+function statusBadgeHTML(status){
+  const c = statusColors(status);
+  return `<span class="badge" style="background:${c.bg}; color:${c.fg}">${status}</span>`;
+}
+function sparklineSVG(data, color, w, h){
+  w = w||64; h = h||24;
+  const max = Math.max(...data), min = Math.min(...data);
+  const pts = data.map((v,i)=>{
+    const x = (i/(data.length-1))*w;
+    const y = h - ((v-min)/((max-min)||1))*h;
+    return x.toFixed(1)+","+y.toFixed(1);
+  }).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/></svg>`;
+}
+
+/* ============================== KPI ============================== */
+function kpiCardHTML(o){
+  const statusColorsMap = {healthy:"#1FD9A0", warning:"#FFAB2E", critical:"#FF5C5C", info:"#7C5CFF"};
+  const clickable = !!o.nav;
+  return `
+  <div class="card kpi-card anim-in" ${clickable?`onclick="setPage('${o.nav}')" role="button" tabindex="0"`:''} style="padding:18px 20px; animation-delay:${o.delay}; ${clickable?'cursor:pointer;':''}">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="font-size:11px; color:var(--text-sec); font-weight:600; letter-spacing:0.4px; text-transform:uppercase;">${o.label}</div>
+      <span class="status-dot" style="background:${statusColorsMap[o.status]}"></span>
+    </div>
+    <div style="display:flex; align-items:baseline; gap:8px; margin-top:10px;">
+      <span class="mono" style="font-size:28px; font-weight:700;">${o.value}</span>
+      ${o.unit ? `<span style="font-size:14px; color:var(--text-sec);">${o.unit}</span>` : ''}
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;">
+      <div>
+        ${o.trendVal ? `<div class="mono" style="font-size:11.5px; font-weight:700; color:${o.trend==='up'?'#34E2B0':o.trend==='down-bad'?'#FF7A7A':'#94A3B8'}; display:flex; align-items:center; gap:3px;">${o.trend==='up'||o.trend==='down-bad'?'▲':'—'} ${o.trendVal}</div>` : ''}
+        <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">${o.sub}</div>
+      </div>
+      ${o.spark ? sparklineSVG(o.spark, o.sparkColor) : ''}
+    </div>
+  </div>`;
+}
+
+/* ============================== SUPPLY CHAIN FLOW ============================== */
+function supplyChainFlowHTML(){
+  const nodes = [
+    {title:"Demand", value:"12.4K units", sub:"↑ 12% vs plan", color:"#FF4FA3", nav:"demand"},
+    {title:"Production", value:"11.8K units", sub:"82% capacity", color:"#38BDF8", nav:"sop"},
+    {title:"Inventory", value:"18.2K units", sub:"87% healthy", color:"#1FD9A0", nav:"inventory"},
+    {title:"Shipments", value:"24 active", sub:"3 delayed", color:"#FFAB2E", nav:"shipments"},
+    {title:"Delivery", value:"91% on-time", sub:"OTIF this cycle", color:"#7C5CFF", nav:"reports"},
+  ];
+  let inner = '';
+  nodes.forEach((n,i)=>{
+    inner += `
+    <div class="card anim-in" onclick="setPage('${n.nav}')" role="button" tabindex="0" style="padding:16px 18px; min-width:150px; border-top:2px solid ${n.color}; animation-delay:${0.15+i*0.05}s; cursor:pointer;">
+      <div style="font-size:10.5px; color:var(--text-sec); font-weight:700; letter-spacing:0.5px; text-transform:uppercase;">${n.title}</div>
+      <div class="mono" style="font-size:20px; font-weight:700; margin-top:6px;">${n.value}</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">${n.sub}</div>
+    </div>`;
+    if(i < nodes.length-1){
+      const nc = nodes[i+1].color;
+      inner += `<div style="flex:1; position:relative; height:2px; background:var(--border); min-width:24px; margin:0 2px;">
+        <div class="flow-dot" style="background:${nc}; box-shadow:0 0 8px ${nc};"></div>
+      </div>`;
+    }
+  });
+  return `
+  <div class="card anim-in" style="padding:24px; animation-delay:0.1s">
+    <div style="font-size:14px; font-weight:700; margin-bottom:4px;">Supply Chain Flow</div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:18px;">End-to-end material flow across the network, live this cycle — click a stage to jump in</div>
+    <div style="display:flex; align-items:center; overflow-x:auto; padding-bottom:4px;">${inner}</div>
+  </div>`;
+}
+
+/* ============================== DEMAND VS SUPPLY CHART ============================== */
+const CHART_W = 760, CHART_H = 240, CHART_PAD = 30;
+function chartData(){ return SERIES_90.slice(90-state.chartRange); }
+function chartXY(){
+  const data = chartData();
+  const allVals = data.flatMap(d=>[d.demand,d.forecast,d.production,d.planned]);
+  const maxV = Math.max(...allVals)*1.05, minV = Math.min(...allVals)*0.95;
+  const xFor = i => CHART_PAD + (i/(data.length-1))*(CHART_W-CHART_PAD*2);
+  const yFor = v => CHART_H-CHART_PAD - ((v-minV)/(maxV-minV))*(CHART_H-CHART_PAD*1.6);
+  return {data, xFor, yFor};
+}
+function demandSupplyChartHTML(){
+  const {data, xFor, yFor} = chartXY();
+  const line = key => data.map((d,i)=>xFor(i)+","+yFor(d[key])).join(' ');
+  const areaPath = key => {
+    const pts = data.map((d,i)=>xFor(i)+","+yFor(d[key]));
+    return `M${CHART_PAD},${CHART_H-CHART_PAD} L${pts.join(' L')} L${xFor(data.length-1)},${CHART_H-CHART_PAD} Z`;
+  };
+  const gridLines = [0,1,2,3].map(i=>{
+    const y = CHART_PAD + i*(CHART_H-CHART_PAD*1.6)/3;
+    return `<line x1="${CHART_PAD}" x2="${CHART_W-CHART_PAD}" y1="${y}" y2="${y}" stroke="var(--border)" stroke-width="1" opacity="0.5"/>`;
+  }).join('');
+
+  const legend = [["#FF4FA3","Actual Demand"],["#7C5CFF","Forecast"],["#38BDF8","Production"],["#1FD9A0","Planned"]]
+    .map(([c,l])=>`<div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-sec);"><span style="width:9px; height:9px; border-radius:2px; background:${c}; display:inline-block;"></span>${l}</div>`).join('');
+
+  const ranges = [7,30,90].map(r=>`
+    <button class="mono focus-ring" onclick="setChartRange(${r})"
+      style="font-size:11px; font-weight:700; padding:5px 11px; border-radius:6px; border:none;
+      background:${state.chartRange===r?'var(--cyan)':'transparent'}; color:${state.chartRange===r?'#150B2E':'var(--text-sec)'}">${r}D</button>`).join('');
+
+  return `
+  <div class="card anim-in" style="padding:24px; animation-delay:0.15s">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <div style="font-size:14px; font-weight:700;">Demand vs Supply</div>
+        <div style="font-size:11.5px; color:var(--text-muted);">Actual demand, forecast, and production capacity over time</div>
+      </div>
+      <div style="display:flex; gap:4px; background:var(--bg2); padding:3px; border-radius:8px; border:1px solid var(--border);">${ranges}</div>
+    </div>
+    <div style="display:flex; gap:16px; margin-bottom:10px; flex-wrap:wrap;">${legend}</div>
+    <div style="position:relative;">
+      <svg id="demandChartSvg" viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}" style="cursor:crosshair;">
+        <defs>
+          <linearGradient id="areaFade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7C5CFF" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#7C5CFF" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        <path d="${areaPath('forecast')}" fill="url(#areaFade)"/>
+        <polyline points="${line('production')}" fill="none" stroke="#38BDF8" stroke-width="1.8" opacity="0.85"/>
+        <polyline points="${line('planned')}" fill="none" stroke="#1FD9A0" stroke-width="1.8" opacity="0.85" stroke-dasharray="4 3"/>
+        <polyline points="${line('forecast')}" fill="none" stroke="#7C5CFF" stroke-width="1.8" opacity="0.9"/>
+        <polyline points="${line('demand')}" fill="none" stroke="#FF4FA3" stroke-width="2.2"/>
+        <g id="chartHoverGroup" style="display:none;">
+          <line id="chartHoverLine" x1="0" x2="0" y1="${CHART_PAD*0.4}" y2="${CHART_H-CHART_PAD}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3"/>
+          <circle id="chartDotDemand" r="3.5" fill="#FF4FA3" stroke="#140F24" stroke-width="1.5"/>
+          <circle id="chartDotForecast" r="3.5" fill="#7C5CFF" stroke="#140F24" stroke-width="1.5"/>
+          <circle id="chartDotProduction" r="3.5" fill="#38BDF8" stroke="#140F24" stroke-width="1.5"/>
+          <circle id="chartDotPlanned" r="3.5" fill="#1FD9A0" stroke="#140F24" stroke-width="1.5"/>
+        </g>
+      </svg>
+      <div id="chartTooltip" class="card-elevated mono" style="display:none; position:absolute; top:6px; left:6px; padding:10px 12px; font-size:11px; pointer-events:none; min-width:150px;"></div>
+    </div>
+  </div>`;
+}
+function wireChart(){
+  const svg = document.getElementById('demandChartSvg');
+  if(!svg) return;
+  svg.addEventListener('mousemove', (e)=>{
+    const {data, xFor, yFor} = chartXY();
+    const rect = svg.getBoundingClientRect();
+    const x = ((e.clientX-rect.left)/rect.width)*CHART_W;
+    let idx = Math.round(((x-CHART_PAD)/(CHART_W-CHART_PAD*2))*(data.length-1));
+    idx = Math.max(0, Math.min(data.length-1, idx));
+    const hd = data[idx];
+    document.getElementById('chartHoverGroup').style.display = '';
+    document.getElementById('chartHoverLine').setAttribute('x1', xFor(idx));
+    document.getElementById('chartHoverLine').setAttribute('x2', xFor(idx));
+    document.getElementById('chartDotDemand').setAttribute('cx', xFor(idx)); document.getElementById('chartDotDemand').setAttribute('cy', yFor(hd.demand));
+    document.getElementById('chartDotForecast').setAttribute('cx', xFor(idx)); document.getElementById('chartDotForecast').setAttribute('cy', yFor(hd.forecast));
+    document.getElementById('chartDotProduction').setAttribute('cx', xFor(idx)); document.getElementById('chartDotProduction').setAttribute('cy', yFor(hd.production));
+    document.getElementById('chartDotPlanned').setAttribute('cx', xFor(idx)); document.getElementById('chartDotPlanned').setAttribute('cy', yFor(hd.planned));
+    const gap = hd.demand - hd.production;
+    const tip = document.getElementById('chartTooltip');
+    tip.style.display = '';
+    tip.innerHTML = `
+      <div style="color:var(--text-muted); margin-bottom:5px;">Day ${hd.day+1}</div>
+      <div style="color:#FF4FA3">Demand: ${hd.demand.toLocaleString()}</div>
+      <div style="color:#7C5CFF">Forecast: ${hd.forecast.toLocaleString()}</div>
+      <div style="color:#38BDF8">Production: ${hd.production.toLocaleString()}</div>
+      <div style="color:${gap>0?'#FF7A7A':'#34E2B0'}">Gap: ${gap>0?'+':''}${gap.toLocaleString()}</div>`;
+  });
+  svg.addEventListener('mouseleave', ()=>{
+    document.getElementById('chartHoverGroup').style.display = 'none';
+    document.getElementById('chartTooltip').style.display = 'none';
+  });
+}
+function setChartRange(r){
+  state.chartRange = r;
+  const el = document.getElementById('chartRegion');
+  if(el){ el.innerHTML = demandSupplyChartHTML(); wireChart(); }
+}
+
+/* ============================== S&OP HEALTH RING ============================== */
+function sopHealthRingHTML(){
+  const metrics = [
+    {label:"Demand alignment", val:92, color:"#FF4FA3"},
+    {label:"Production alignment", val:87, color:"#38BDF8"},
+    {label:"Inventory alignment", val:84, color:"#1FD9A0"},
+    {label:"Logistics readiness", val:91, color:"#7C5CFF"},
+  ];
+  const overall = 89, r = 46, circ = 2*Math.PI*r;
+  const bars = metrics.map(m=>`
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+        <span style="color:var(--text-sec);">${m.label}</span>
+        <span class="mono" style="font-weight:700;">${m.val}%</span>
+      </div>
+      <div style="height:5px; background:var(--bg2); border-radius:3px; overflow:hidden;">
+        <div style="height:100%; width:${m.val}%; background:${m.color}; border-radius:3px; transition:width 1s ease;"></div>
+      </div>
+    </div>`).join('');
+  return `
+  <div class="card anim-in" style="padding:22px; animation-delay:0.2s">
+    <div style="font-size:14px; font-weight:700; margin-bottom:2px;">S&OP Health</div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:16px;">Cross-functional alignment score</div>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div style="position:relative; width:112px; height:112px; flex-shrink:0;">
+        <svg width="112" height="112" style="transform:rotate(-90deg);">
+          <circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--border)" stroke-width="9"/>
+          <circle id="sopRing" cx="56" cy="56" r="${r}" fill="none" stroke="#1FD9A0" stroke-width="9" stroke-linecap="round"
+            stroke-dasharray="${circ}" stroke-dashoffset="${circ}" style="transition:stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1);"/>
+        </svg>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div class="mono" style="font-size:24px; font-weight:700;">${overall}%</div>
+          <div style="font-size:9.5px; color:#34E2B0; font-weight:700; letter-spacing:0.4px;">HEALTHY</div>
+        </div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:10px;">${bars}</div>
+    </div>
+  </div>`;
+}
+function animateSopRing(){
+  const ring = document.getElementById('sopRing');
+  if(!ring) return;
+  const r = 46, circ = 2*Math.PI*r, overall = 89;
+  setTimeout(()=>{ ring.style.strokeDashoffset = circ - (overall/100)*circ; }, 300);
+}
+
+/* ============================== ALERTS ============================== */
+function alertCardHTML(a, idx){
+  const sevMap = {
+    critical:{color:"#FF5C5C", bg:"rgba(255,92,92,0.08)", dot:"🔴"},
+    warning:{color:"#FFAB2E", bg:"rgba(255,171,46,0.08)", dot:"🟠"},
+    caution:{color:"#F5C242", bg:"rgba(245,194,66,0.08)", dot:"🟡"},
+  };
+  const s = sevMap[a.sev];
+  return `
+  <div style="background:${s.bg}; border:1px solid ${s.color}33; border-left:3px solid ${s.color}; border-radius:10px; padding:13px 15px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+      <div style="font-size:13px; font-weight:700;">${s.dot} ${a.title}</div>
+      <span class="badge" style="background:${s.color}22; color:${s.color}">${a.source}</span>
+    </div>
+    <div style="font-size:12px; color:var(--text-sec); margin-top:6px; line-height:1.5;">${a.desc}</div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-top:5px;"><b style="color:var(--text-sec);">Impact:</b> ${a.impact}</div>
+    <button class="mono focus-ring" onclick="alertAction(${idx})"
+      style="margin-top:10px; font-size:11px; font-weight:700; color:${s.color}; border:1px solid ${s.color}55; padding:6px 12px; border-radius:7px; background:transparent;">
+      ${a.action} →
+    </button>
+  </div>`;
+}
+function alertAction(idx){
+  const a = ALERTS[idx];
+  addToast({type:"info", title:a.action, msg:`Opening ${a.source.toLowerCase()} module…`});
+}
+
+/* ============================== SHIPMENTS TABLE ============================== */
+const TABLE_COLS = [["id","Shipment"],["origin","Origin"],["dest","Destination"],["load","Load"],["eta","ETA"],["status","Status"],["dock","Dock"],["priority","Priority"]];
+function filteredSortedTrucks(){
+  let rows = TRUCKS.filter(t =>
+    t.id.toLowerCase().includes(state.tableQuery.toLowerCase()) ||
+    t.shipment.toLowerCase().includes(state.tableQuery.toLowerCase()) ||
+    t.dest.toLowerCase().includes(state.tableQuery.toLowerCase())
+  );
+  if(state.sortKey){
+    rows = [...rows].sort((a,b)=>{
+      const av=a[state.sortKey], bv=b[state.sortKey];
+      if(typeof av==='number') return (av-bv)*state.sortDir;
+      return String(av).localeCompare(String(bv))*state.sortDir;
+    });
+  }
+  return rows;
+}
+function shipmentsTableRowsHTML(){
+  return filteredSortedTrucks().map(t=>`
+    <tr class="data-row" onclick="selectTruck('${t.id}')">
+      <td class="mono" style="font-weight:700;">${t.id}</td>
+      <td style="color:var(--text-sec);">${t.origin}</td>
+      <td style="color:var(--text-sec);">${t.dest}</td>
+      <td class="mono" style="color:var(--text-sec);">${t.load} u</td>
+      <td class="mono">${t.eta}</td>
+      <td>${statusBadgeHTML(t.status)}</td>
+      <td class="mono" style="color:var(--text-sec);">${t.dock}</td>
+      <td><span style="font-size:11px; font-weight:700; color:${t.priority==='High'?'#FF7A7A':t.priority==='Medium'?'#FFC94D':'#94A3B8'}">${t.priority}</span></td>
+    </tr>`).join('');
+}
+function shipmentsTableHTML(){
+  const heads = TABLE_COLS.map(([key,label])=>`<th onclick="toggleSort('${key}')">${label} ${state.sortKey===key?(state.sortDir===1?'↑':'↓'):''}</th>`).join('');
+  return `
+  <div class="card anim-in" style="padding:22px; animation-delay:0.25s">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <div style="font-size:14px; font-weight:700;">Active Shipments</div>
+        <div id="shipCount" style="font-size:11.5px; color:var(--text-muted);">Showing ${filteredSortedTrucks().length} of 24 active shipments</div>
+      </div>
+      <div style="position:relative;">
+        <span style="position:absolute; left:10px; top:8px; color:var(--text-muted);">${ICONS.search}</span>
+        <input id="shipSearch" oninput="onTableSearch(this.value)" placeholder="Search shipment, truck, destination…"
+          class="mono focus-ring" style="background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:7px 12px 7px 32px; font-size:11.5px; color:var(--text); width:240px;">
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%; border-collapse:collapse; font-size:12.5px;">
+        <thead><tr>${heads}</tr></thead>
+        <tbody id="shipTableBody">${shipmentsTableRowsHTML()}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function updateShipmentsTable(){
+  const body = document.getElementById('shipTableBody');
+  const count = document.getElementById('shipCount');
+  if(body) body.innerHTML = shipmentsTableRowsHTML();
+  if(count) count.textContent = `Showing ${filteredSortedTrucks().length} of 24 active shipments`;
+  // refresh sort arrows on headers without losing the search input
+  const headerRow = document.querySelector('table.data-table thead tr');
+  if(headerRow) headerRow.innerHTML = TABLE_COLS.map(([key,label])=>`<th onclick="toggleSort('${key}')">${label} ${state.sortKey===key?(state.sortDir===1?'↑':'↓'):''}</th>`).join('');
+}
+function onTableSearch(val){ state.tableQuery = val; updateShipmentsTable(); }
+function toggleSort(key){
+  if(state.sortKey===key) state.sortDir *= -1; else { state.sortKey = key; state.sortDir = 1; }
+  updateShipmentsTable();
+}
+
+/* ============================== DRAWER ============================== */
+function drawerHTML(){
+  const t = state.selectedTruck;
+  if(!t) return '';
+  const fields = [
+    ["Shipment ID", t.shipment], ["Load", t.load+" units"],
+    ["Origin", t.origin], ["Destination", t.dest],
+    ["ETA", t.eta], ["Assigned Dock", t.dock],
+    ["Priority", t.priority], ["Driver", "Arun Kumar"],
+  ].map(([k,v])=>`
+    <div>
+      <div style="font-size:10px; color:var(--text-muted); font-weight:700; letter-spacing:0.3px; text-transform:uppercase;">${k}</div>
+      <div class="mono" style="font-size:13px; margin-top:3px;">${v}</div>
+    </div>`).join('');
+
+  const timeline = [
+    ["09:20","Departed plant"], ["11:05","Entered highway"],
+    ["12:42","Delay detected"], ["13:10","ETA recalculated"],
+    [t.eta,"Expected arrival"]
+  ].map(([time,ev])=>`
+    <div style="position:relative; padding-bottom:16px;">
+      <div style="position:absolute; left:-18px; top:2px; width:9px; height:9px; border-radius:50%; background:var(--cyan); border:2px solid var(--card-elevated);"></div>
+      <div class="mono" style="font-size:10.5px; color:var(--text-muted);">${time}</div>
+      <div style="font-size:12.5px; margin-top:2px;">${ev}</div>
+    </div>`).join('');
+
+  return `
+  <div style="position:fixed; inset:0; z-index:50;">
+    <div class="backdrop-in" onclick="closeDrawer()" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+    <div class="card-elevated drawer-in" style="position:absolute; right:0; top:0; bottom:0; width:400px; max-width:90vw; padding:24px; overflow-y:auto; border-left:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+        <div>
+          <div style="font-size:10.5px; color:var(--text-muted); font-weight:700; letter-spacing:0.5px; text-transform:uppercase;">Shipment Detail</div>
+          <div class="mono" style="font-size:20px; font-weight:700; margin-top:3px;">${t.id}</div>
+        </div>
+        <button onclick="closeDrawer()" style="color:var(--text-muted); background:none; border:none;">${ICONS.x}</button>
+      </div>
+      ${statusBadgeHTML(t.status)}
+      <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:14px;">${fields}</div>
+      <div style="margin-top:24px;">
+        <div style="font-size:12px; font-weight:700; margin-bottom:12px;">Shipment Timeline</div>
+        <div style="position:relative; padding-left:18px;">
+          <div style="position:absolute; left:4px; top:2px; bottom:2px; width:2px; background:var(--border);"></div>
+          ${timeline}
+        </div>
+      </div>
+      <div style="margin-top:10px; padding:10px 12px; background:var(--bg2); border-radius:8px; font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:7px;">
+        <span class="live-dot"></span> SIMULATED LIVE DATA — full tracking on the Truck Tracking page
+      </div>
+    </div>
+  </div>`;
+}
+function selectTruck(id){
+  const truck = TRUCKS.find(t=>t.id===id);
+  if(!truck) return;
+  state.selectedTruck = truck;
+  state.trackingSelectedId = id;
+  state.page = 'trucks';
+  renderMain();
+  setTimeout(()=>highlightShipmentRoute(id), 150);
+}
+function closeDrawer(){
+  state.selectedTruck = null;
+  document.getElementById('drawerRegion').innerHTML = '';
+}
+
+/* ============================== COMMAND PALETTE ============================== */
+function paletteResultsHTML(){
+  const q = state.paletteQuery;
+  if(!q) return `<div style="padding:16px; font-size:11.5px; color:var(--text-muted);">Try "TRK-104", "D03", "Chennai", or "Demand Surge"</div>`;
+  const ql = q.toLowerCase();
+  const items = [];
+  TRUCKS.forEach(t=>{
+    if(t.id.toLowerCase().includes(ql) || t.shipment.toLowerCase().includes(ql)){
+      items.push({type:"Truck", label:t.id, sub:`${t.shipment} · ${t.origin} → ${t.dest}`, page:"trucks"});
+    }
+  });
+  ["D01","D02","D03","D04","D05"].forEach(d=>{ if(d.toLowerCase().includes(ql)) items.push({type:"Dock", label:d, sub:"Yard & Dock Operations", page:"yard"}); });
+  FACILITIES.forEach(f=>{ if(f.toLowerCase().includes(ql)) items.push({type:"Facility", label:f, sub:"Facility filter", page:"overview"}); });
+  ALERTS.forEach(a=>{ if(a.title.toLowerCase().includes(ql)) items.push({type:"Alert", label:a.title, sub:a.desc, page:"alerts"}); });
+  const top = items.slice(0,8);
+  if(top.length===0) return `<div style="padding:20px; font-size:12.5px; color:var(--text-muted); text-align:center;">No results for "${q}"</div>`;
+  return top.map(r=>`
+    <div onclick="paletteNavigate('${r.page}')"
+      style="padding:11px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border-bottom:1px solid var(--border);"
+      onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background='transparent'">
+      <div>
+        <div style="font-size:13px; font-weight:600;">${r.label}</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">${r.sub}</div>
+      </div>
+      <span class="badge" style="background:var(--bg2); color:var(--text-sec); border:1px solid var(--border);">${r.type}</span>
+    </div>`).join('');
+}
+function paletteHTML(){
+  if(!state.paletteOpen) return '';
+  return `
+  <div style="position:fixed; inset:0; z-index:60; display:flex; align-items:flex-start; justify-content:center; padding-top:12vh;">
+    <div class="backdrop-in" onclick="closePalette()" style="position:absolute; inset:0; background:rgba(0,0,0,0.6);"></div>
+    <div class="card-elevated anim-in" style="position:relative; width:560px; max-width:90vw; border-radius:14px; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);">${ICONS.search}</span>
+        <input id="paletteInput" oninput="onPaletteInput(this.value)" placeholder="Search trucks, shipments, docks, facilities, alerts…"
+          style="flex:1; background:transparent; border:none; color:var(--text); font-size:14px;">
+        <kbd class="mono" style="font-size:10px; color:var(--text-muted); border:1px solid var(--border); padding:2px 6px; border-radius:5px;">ESC</kbd>
+      </div>
+      <div id="paletteResults" style="max-height:320px; overflow-y:auto;">${paletteResultsHTML()}</div>
+    </div>
+  </div>`;
+}
+function openPalette(){
+  state.paletteOpen = true; state.paletteQuery = "";
+  document.getElementById('paletteRegion').innerHTML = paletteHTML();
+  setTimeout(()=>{ const inp = document.getElementById('paletteInput'); if(inp) inp.focus(); }, 20);
+}
+function closePalette(){
+  state.paletteOpen = false;
+  document.getElementById('paletteRegion').innerHTML = '';
+}
+function onPaletteInput(val){
+  state.paletteQuery = val;
+  const el = document.getElementById('paletteResults');
+  if(el) el.innerHTML = paletteResultsHTML();
+}
+function paletteNavigate(page){ closePalette(); setPage(page); }
+
+/* ============================== TOASTS ============================== */
+function toastHTML(t){
+  const colors = {success:"#1FD9A0", info:"#38BDF8", warning:"#FFAB2E", error:"#FF5C5C"};
+  return `
+  <div class="toast-in card-elevated" style="padding:12px 14px; min-width:280px; border-left:3px solid ${colors[t.type]||colors.info}; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+    <div>
+      <div style="font-size:12.5px; font-weight:600; color:var(--text);">${t.title}</div>
+      ${t.msg ? `<div style="font-size:11.5px; color:var(--text-sec); margin-top:2px;">${t.msg}</div>` : ''}
+    </div>
+    <button onclick="removeToast(${t.id})" style="color:var(--text-muted); background:none; border:none;">${ICONS.x}</button>
+  </div>`;
+}
+function renderToasts(){
+  document.getElementById('toastRegion').innerHTML = state.toasts.map(toastHTML).join('');
+  document.getElementById('notifBadge').outerHTML = notifBadgeHTML();
+}
+function addToast(t){
+  const id = Date.now()+Math.floor(Math.random()*1000);
+  state.toasts.push({...t, id});
+  renderToasts();
+  setTimeout(()=>removeToast(id), 4200);
+}
+function removeToast(id){
+  state.toasts = state.toasts.filter(t=>t.id!==id);
+  renderToasts();
+}
+function notifBadgeHTML(){
+  const n = state.toasts.length;
+  return `<span id="notifBadge" style="position:absolute; top:-4px; right:-4px; background:#FF5C5C; color:#fff; font-size:9px; font-weight:700; border-radius:50%; width:14px; height:14px; display:${n>0?'flex':'none'}; align-items:center; justify-content:center;">${n}</span>`;
+}
+
+/* ============================== SIDEBAR ============================== */
+function sidebarHTML(){
+  const items = NAV.map(n=>`
+    <div class="nav-item focus-ring ${state.page===n.key?'active':''}" onclick="setPage('${n.key}')">
+      <span style="flex-shrink:0;">${n.icon}</span>
+      ${!state.collapsed ? `<span style="font-size:12.5px; font-weight:600; white-space:nowrap;">${n.label}</span>` : ''}
+    </div>`).join('');
+  return `
+  <div class="sidebar glass" style="width:${state.collapsed?68:236}px;">
+    <div style="display:flex; align-items:center; gap:10px; padding:18px 16px; border-bottom:1px solid var(--border);">
+      <div style="width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#7C5CFF,#38BDF8); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#0F0620;">N</div>
+      ${!state.collapsed ? `<div style="overflow:hidden;"><div style="font-size:14px; font-weight:800; letter-spacing:0.3px;">NEXUS</div><div style="font-size:9px; color:var(--text-muted); white-space:nowrap;">SUPPLY CHAIN CONTROL TOWER</div></div>` : ''}
+    </div>
+    <div style="flex:1; padding:10px 8px; overflow-y:auto;">${items}</div>
+    <div style="padding:12px; border-top:1px solid var(--border);">
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 6px;">
+        <span class="live-dot"></span>
+        ${!state.collapsed ? `<span style="font-size:11px; color:var(--text-muted);">All systems operational</span>` : ''}
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 6px;">
+        <div style="width:24px; height:24px; border-radius:50%; background:var(--card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0;">MK</div>
+        ${!state.collapsed ? `<span style="font-size:11.5px; color:var(--text-sec);">Mukesh · Ops</span>` : ''}
+      </div>
+      <button class="focus-ring" onclick="toggleCollapsed()" style="margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:7px; border-radius:7px; color:var(--text-muted); border:1px solid var(--border); background:none;">
+        ${state.collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
+        ${!state.collapsed ? `<span style="font-size:11px;">Collapse</span>` : ''}
+      </button>
+    </div>
+  </div>`;
+}
+function toggleCollapsed(){
+  state.collapsed = !state.collapsed;
+  document.getElementById('sidebarRegion').innerHTML = sidebarHTML();
+}
+
+/* ============================== HEADER ============================== */
+function headerHTML(){
+  const [t,s] = PAGE_META[state.page] || PAGE_META.overview;
+  const facOptions = FACILITIES.map(f=>`<option ${f===state.facility?'selected':''}>${f}</option>`).join('');
+  return `
+  <div class="header glass">
+    <div>
+      <div style="font-size:18px; font-weight:700;">${t}</div>
+      <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">${s}</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted);">
+        <span class="live-dot"></span> Last updated: <span id="secondsAgoText">${state.secondsAgo}</span>s ago
+      </div>
+      <select onchange="setFacility(this.value)" class="mono focus-ring" style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:11.5px; color:var(--text);">${facOptions}</select>
+      <button onclick="openPalette()" class="mono focus-ring" style="display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-size:11.5px; color:var(--text-muted);">
+        ${ICONS.search} Search <kbd style="font-size:9.5px; border:1px solid var(--border); padding:1px 5px; border-radius:4px;">⌘K</kbd>
+      </button>
+      <div style="position:relative; color:var(--text-sec);">${ICONS.bell}${notifBadgeHTML()}</div>
+    </div>
+  </div>`;
+}
+function setFacility(val){
+  state.facility = val;
+}
+
+/* ============================== PLACEHOLDER PAGE ============================== */
+function placeholderPageHTML(label, phase){
+  return `
+  <div class="card anim-in" style="padding:60px; text-align:center; margin:40px auto; max-width:520px;">
+    <div style="width:48px; height:48px; border-radius:12px; background:var(--bg2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; color:var(--cyan);">${ICONS.gear}</div>
+    <div style="font-size:15px; font-weight:700;">${label}</div>
+    <div style="font-size:12.5px; color:var(--text-muted); margin-top:8px; line-height:1.6;">
+      This module is next in the build queue (${phase}). The Overview shell, navigation, command palette and design system are fully wired — this page will reuse those same components.
+    </div>
+  </div>`;
+}
+
+/* ============================== OVERVIEW PAGE ============================== */
+function overviewPageHTML(){
+  return `
+  <div style="display:flex; flex-direction:column; gap:18px; padding:22px 26px 50px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px;">
+      ${kpiCardHTML({label:"Demand Forecast", value:"12.8", unit:"%", sub:"vs previous cycle", trend:"up", trendVal:"12.8%", status:"info", spark:SPARKLINES.demand, sparkColor:"#FF4FA3", delay:"0.02s", nav:"demand"})}
+      ${kpiCardHTML({label:"Inventory Health", value:"87", unit:"%", sub:"Healthy", trend:"up", trendVal:"2.1%", status:"healthy", spark:SPARKLINES.inventory, sparkColor:"#1FD9A0", delay:"0.06s", nav:"inventory"})}
+      ${kpiCardHTML({label:"Production Capacity", value:"82", unit:"%", sub:"Utilized", trend:"up", trendVal:"1.4%", status:"healthy", spark:SPARKLINES.capacity, sparkColor:"#38BDF8", delay:"0.1s", nav:"sop"})}
+      ${kpiCardHTML({label:"Active Shipments", value:"24", sub:"18 on-time", trend:"up", trendVal:"3", status:"healthy", spark:SPARKLINES.shipments, sparkColor:"#7C5CFF", delay:"0.14s", nav:"shipments"})}
+      ${kpiCardHTML({label:"At-Risk Shipments", value:"3", sub:"Requires attention", trend:"down-bad", trendVal:"1", status:"warning", spark:SPARKLINES.risk, sparkColor:"#FFAB2E", delay:"0.18s", nav:"alerts"})}
+      ${kpiCardHTML({label:"Dock Utilization", value:"74", unit:"%", sub:"+6% today", trend:"up", trendVal:"6%", status:"info", spark:SPARKLINES.dock, sparkColor:"#7C5CFF", delay:"0.22s", nav:"yard"})}
+    </div>
+
+    ${supplyChainFlowHTML()}
+
+    <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:18px; align-items:start;">
+      <div id="chartRegion">${demandSupplyChartHTML()}</div>
+      ${sopHealthRingHTML()}
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1.6fr; gap:18px; align-items:start;">
+      <div class="card anim-in" style="padding:22px; animation-delay:0.3s">
+        <div style="font-size:14px; font-weight:700; margin-bottom:2px;">Requires Attention</div>
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:16px;">Actionable exceptions across the network</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          ${ALERTS.map((a,i)=>alertCardHTML(a,i)).join('')}
+        </div>
+      </div>
+      ${shipmentsTableHTML()}
+    </div>
+  </div>`;
+}
+
+/* ============================== TRUCK TRACKING PAGE ============================== */
+function truckListItemHTML(t){
+  const active = state.trackingSelectedId===t.id;
+  const color = truckMarkerColor(t.status);
+  return `
+  <div onclick="selectTrackingTruck('${t.id}')" class="focus-ring"
+    style="padding:11px 12px; border-radius:10px; cursor:pointer; margin-bottom:4px;
+    background:${active?'rgba(124,92,255,0.1)':'transparent'}; border:1px solid ${active?'var(--cyan)':'transparent'};">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+        <span class="mono" style="font-size:12.5px; font-weight:700;">${t.id}</span>
+      </div>
+      ${statusBadgeHTML(t.status)}
+    </div>
+    <div style="font-size:11px; color:var(--text-muted); margin-top:5px;">${t.origin} → ${t.dest}</div>
+    <div style="height:4px; background:var(--bg2); border-radius:3px; overflow:hidden; margin-top:7px;">
+      <div style="height:100%; width:${TRACK_STATE[t.id].progress}%; background:${color}; border-radius:3px;"></div>
+    </div>
+  </div>`;
+}
+function truckListHTML(){
+  return `
+  <div class="card anim-in" style="padding:16px; animation-delay:0.05s; height:100%; display:flex; flex-direction:column;">
+    <div style="font-size:12.5px; font-weight:700; margin-bottom:2px;">Fleet · 8 trucks</div>
+    <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:12px;">Click a truck to view live details</div>
+    <div id="truckListItems" style="overflow-y:auto; flex:1;">${TRUCKS.map(truckListItemHTML).join('')}</div>
+  </div>`;
+}
+
+/* ============================== REAL INTERACTIVE MAP ============================== */
+const MAP_GEO = {
+  "Mumbai Plant":[19.0760,72.8777], "Mumbai DC":[19.1800,72.9800],
+  "Hyderabad Plant":[17.3850,78.4867], "Hyderabad DC":[17.5100,78.6000],
+  "Bangalore Plant":[12.9716,77.5946], "Bangalore DC":[13.0500,77.7200],
+  "Chennai Plant":[13.0827,80.2707], "Chennai DC":[13.1500,80.3500]
+};
+let realMap=null, mapLayers={markers:{},routes:[],facilities:[]};
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function mapPanelHTML(){ return `<div id="realMap" style="width:100%;height:100%;border-radius:14px;overflow:hidden;background:#dfe9f4"></div><div style="position:absolute;top:12px;left:12px;z-index:1000;background:rgba(255,255,255,.97);border-radius:14px;padding:9px 12px;box-shadow:0 5px 22px rgba(0,0,0,.2);display:flex;gap:9px;align-items:center"><span style="color:#4d5b68">${ICONS.search}</span><input id="mapSearchInput" oninput="onMapSearch(this.value)" placeholder="Search truck, plant or DC..." style="width:210px;border:0;background:transparent;color:#1b2733;font-size:12px"></div><div id="mapSearchResults" style="position:absolute;top:58px;left:12px;z-index:1000"></div><div style="position:absolute;right:12px;top:12px;z-index:1000;background:rgba(7,17,31,.86);color:#fff;border-radius:999px;padding:7px 12px;font-size:10px;font-weight:800;box-shadow:0 4px 18px rgba(0,0,0,.25)"><span style="color:#43D38A">●</span> LIVE · SIMULATED</div>`; }
+function initRealMap(){
+  if(!window.L) return;
+  realMap=L.map('realMap',{zoomControl:false,attributionControl:true}).setView([15.7,77.3],5.8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(realMap);
+  L.control.zoom({position:'bottomright'}).addTo(realMap);
+  renderRealMapLayers();
+}
+function facilityIcon(name){ const plant=name.includes('Plant'); return L.divIcon({className:'real-map-marker',iconSize:[34,42],iconAnchor:[17,38],html:`<div class="facility-badge" style="background:${plant?'#F05252':'#3B82F6'}"><span>${plant?'⚙':'▣'}</span></div>`}); }
+function truckIcon(status){ const c=truckMarkerColor(status); return L.divIcon({className:'real-map-marker',iconSize:[32,32],iconAnchor:[16,16],html:`<div class="truck-badge" style="background:${c}">▰</div>`}); }
+function renderRealMapLayers(){
+  if(!realMap) return;
+
+  Object.entries(MAP_GEO).forEach(([name,ll])=>{
+    const m=L.marker(ll,{icon:facilityIcon(name),title:name})
+      .addTo(realMap)
+      .bindTooltip(`<b>${name}</b><br><span style="font-size:11px">${name.includes('Plant')?'Production plant':'Distribution center'}</span>`);
+    mapLayers.facilities.push(m);
+  });
+
+  // Background network routes
+  const trunk=[["Mumbai DC","Hyderabad DC"],["Hyderabad DC","Bangalore DC"],["Bangalore DC","Chennai DC"]];
+  trunk.forEach(([a,b])=>{
+    mapLayers.routes.push(L.polyline([MAP_GEO[a],MAP_GEO[b]],{
+      color:'#7C8FA3',weight:3,opacity:.35,dashArray:'6 8'
+    }).addTo(realMap));
+  });
+
+  // Shipment routes: selected shipment is visually dominant.
+  TRUCKS.forEach(t=>{
+    const selected = state.trackingSelectedId === t.id;
+    const route = L.polyline([MAP_GEO[t.origin], MAP_GEO[t.dest]],{
+      color:selected ? '#2563EB' : '#64748B',
+      weight:selected ? 8 : 3,
+      opacity:selected ? .95 : .16,
+      lineCap:'round',
+      lineJoin:'round'
+    }).addTo(realMap);
+
+    if(selected){
+      route.bindTooltip(`<b>${t.shipment}</b><br>${t.origin} → ${t.dest}`,{
+        permanent:false,direction:'top',className:'shipment-route-tooltip'
+      });
+      route.bringToFront();
+      setTimeout(()=>{
+        const bounds=L.latLngBounds([MAP_GEO[t.origin],MAP_GEO[t.dest]]);
+        realMap.fitBounds(bounds.pad(.35),{animate:true,duration:.8});
+      },80);
+    }
+    mapLayers.routes.push(route);
+  });
+
+  TRUCKS.forEach(t=>{
+    const pos=geoTruckPosition(t);
+    const m=L.marker(pos,{icon:truckIcon(t.status),title:t.id})
+      .addTo(realMap)
+      .bindTooltip(`<b>${t.id}</b><br><span style="font-size:11px">${t.origin} → ${t.dest}</span>`);
+    m.on('click',()=>selectTrackingTruck(t.id));
+    mapLayers.markers[t.id]=m;
+  });
+}
+
+function highlightShipmentRoute(id){
+  state.trackingSelectedId=id;
+  if(!realMap) return;
+  // Rebuild the map layers so only the selected shipment route is emphasized.
+  Object.values(mapLayers.markers).forEach(m=>realMap.removeLayer(m));
+  mapLayers.routes.forEach(r=>realMap.removeLayer(r));
+  mapLayers.facilities.forEach(f=>realMap.removeLayer(f));
+  mapLayers={markers:{},routes:[],facilities:[]};
+  renderRealMapLayers();
+}
+function geoTruckPosition(t){ const a=MAP_GEO[t.origin],b=MAP_GEO[t.dest],p=(TRACK_STATE[t.id]?.progress||0)/100; return [a[0]+(b[0]-a[0])*p,a[1]+(b[1]-a[1])*p]; }
+function updateRealTruckMarker(t){ const m=mapLayers.markers[t.id]; if(m){ m.setLatLng(geoTruckPosition(t)); m.setIcon(truckIcon(t.status)); } }
+function onMapSearch(v){ state.mapSearch=v; const q=v.trim().toLowerCase(); const box=document.getElementById('mapSearchResults'); if(!box) return; if(!q){box.innerHTML='';return;} const hits=[...TRUCKS.filter(t=>t.id.toLowerCase().includes(q)||t.origin.toLowerCase().includes(q)||t.dest.toLowerCase().includes(q)).map(t=>({label:t.id,type:'truck',t})),...Object.keys(MAP_GEO).filter(n=>n.toLowerCase().includes(q)).map(n=>({label:n,type:'place',n}))].slice(0,6); box.innerHTML=hits.length?`<div style="background:#fff;border-radius:12px;box-shadow:0 5px 22px rgba(0,0,0,.2);overflow:hidden;width:270px">${hits.map((h,i)=>`<div onclick="mapSearchSelect(${i})" style="padding:10px 13px;border-bottom:1px solid #edf0f2;cursor:pointer;color:#263441"><b>${h.label}</b><div style="font-size:10px;color:#73808b">${h.type==='truck'?h.t.origin+' → '+h.t.dest:(h.n.includes('Plant')?'Production facility':'Distribution center')}</div></div>`).join('')}</div>`:'<div style="background:#fff;padding:10px;border-radius:10px;color:#64748b">No matches</div>'; window.__mapHits=hits; }
+function mapSearchSelect(i){ const h=window.__mapHits[i]; if(!h||!realMap)return; if(h.type==='truck'){ realMap.flyTo(geoTruckPosition(h.t),8,{duration:.8}); selectTrackingTruck(h.t.id);} else realMap.flyTo(MAP_GEO[h.n],9,{duration:.8}); document.getElementById('mapSearchResults').innerHTML=''; }
+function selectTrackingTruck(id){ state.trackingSelectedId=id; if(state.page==='trucks'){ const el=document.getElementById('trackingRightPanel'); if(el)el.innerHTML=trackingRightPanelHTML(); } }
+function toggleMapStyle(){}
+function recenterMap(){ if(realMap)realMap.flyTo([15.7,77.3],5.8,{duration:.7}); }
+function zoomMap(delta){ if(realMap)realMap.setZoom(realMap.getZoom()+(delta>0?1:-1)); }
+function wireMapInteractions(){ initRealMap(); }
+
+function trackingRightPanelHTML(){
+  const id = state.trackingSelectedId;
+  const t = TRUCKS.find(x=>x.id===id);
+  if(!t) return `<div class="card" style="padding:30px; text-align:center; color:var(--text-muted); font-size:12.5px;">Select a truck to view live details</div>`;
+  const s = TRACK_STATE[t.id];
+  const color = truckMarkerColor(t.status);
+  const availableDock = Object.entries(DOCKS).find(([k,v])=>v.status==="Available");
+  const recDock = availableDock ? availableDock[0] : null;
+
+  const timeline = [
+    ["09:20","Departed plant"], ["11:05","Entered highway"],
+    [t.status==="Delayed"?"12:42":"—","Delay detected", t.status!=="Delayed"], ["13:10","ETA recalculated"],
+    [t.eta,"Expected arrival"]
+  ].filter(row=>row[2]!==false).map(([time,ev])=>`
+    <div style="position:relative; padding-bottom:14px;">
+      <div style="position:absolute; left:-18px; top:2px; width:9px; height:9px; border-radius:50%; background:var(--cyan); border:2px solid var(--card);"></div>
+      <div class="mono" style="font-size:10px; color:var(--text-muted);">${time}</div>
+      <div style="font-size:12px; margin-top:2px;">${ev}</div>
+    </div>`).join('');
+
+  return `
+  <div class="card anim-in" style="padding:20px; animation-delay:0.1s; height:100%; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div class="mono" style="font-size:18px; font-weight:700;">${t.id}</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${t.shipment} · Driver: Arun Kumar</div>
+      </div>
+      ${statusBadgeHTML(t.status)}
+    </div>
+
+    <div style="margin-top:16px; display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); background:var(--bg2); padding:6px 10px; border-radius:7px;">
+      <span class="live-dot"></span> SIMULATED LIVE DATA
+    </div>
+
+    <div style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+        <span style="color:var(--text-sec);">Progress</span>
+        <span id="trkProgressText" class="mono" style="font-weight:700;">${s.progress.toFixed(0)}%</span>
+      </div>
+      <div style="height:6px; background:var(--bg2); border-radius:4px; overflow:hidden;">
+        <div id="trkProgressBar" style="height:100%; width:${s.progress}%; background:${color}; border-radius:4px; transition:width 1.2s ease;"></div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Current Speed</div><div id="trkSpeed" class="mono" style="font-size:13px; margin-top:3px;">${s.speed} km/h</div></div>
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Distance Remaining</div><div id="trkDist" class="mono" style="font-size:13px; margin-top:3px;">${s.distRemaining} km</div></div>
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Load</div><div class="mono" style="font-size:13px; margin-top:3px;">${t.load} units</div></div>
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Priority</div><div class="mono" style="font-size:13px; margin-top:3px; color:${t.priority==='High'?'#FF7A7A':t.priority==='Medium'?'#FFC94D':'#94A3B8'}">${t.priority}</div></div>
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">ETA</div><div class="mono" style="font-size:13px; margin-top:3px;">${t.eta}</div></div>
+      <div><div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Delay</div><div class="mono" style="font-size:13px; margin-top:3px; color:${s.delayMin>0?'#FF7A7A':'#34E2B0'}">${s.delayMin>0?'+'+s.delayMin+' min':'On schedule'}</div></div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div style="font-size:11.5px; font-weight:700; margin-bottom:10px;">Shipment Timeline</div>
+      <div style="position:relative; padding-left:16px;">
+        <div style="position:absolute; left:4px; top:2px; bottom:2px; width:2px; background:var(--border);"></div>
+        ${timeline}
+      </div>
+    </div>
+
+    <div style="margin-top:18px; padding:14px; background:var(--bg2); border-radius:10px; border:1px solid var(--border);">
+      <div style="font-size:11.5px; font-weight:700; margin-bottom:8px;">Recommended Dock</div>
+      ${recDock ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="mono" style="font-size:16px; font-weight:700; color:var(--cyan);">${recDock}</div>
+            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;">Compatible + available during ETA window</div>
+          </div>
+          <div class="mono" style="font-size:11px; color:#34E2B0; font-weight:700;">94%</div>
+        </div>
+        <button onclick="assignDock('${t.id}','${recDock}')" class="mono focus-ring"
+          style="margin-top:10px; width:100%; background:var(--cyan); color:#150B2E; border:none; padding:8px; border-radius:7px; font-size:11px; font-weight:700;">
+          Assign Dock ${recDock}
+        </button>` :
+        `<div style="font-size:11.5px; color:var(--text-muted);">No docks currently available.</div>`
+      }
+    </div>
+  </div>`;
+}
+
+function truckTrackingPageHTML(){
+  if(!state.trackingSelectedId) state.trackingSelectedId = "TRK-104";
+  return `
+  <div style="display:grid; grid-template-columns:250px 1fr 320px; gap:16px; padding:22px 26px 50px; height:calc(100vh - 78px);">
+    <div style="min-height:0;">${truckListHTML()}</div>
+    <div class="card anim-in" style="padding:14px; animation-delay:0.08s; min-height:0; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 6px;">
+        <div style="font-size:12.5px; font-weight:700;">Live Network Map</div>
+        <div style="font-size:10px; color:var(--text-muted);">Drag to pan · Scroll or +/− to zoom · Double-click to zoom in</div>
+      </div>
+      <div id="mapContainer" style="flex:1; min-height:0; position:relative; border-radius:14px; overflow:hidden;">${mapPanelHTML()}</div>
+    </div>
+    <div id="trackingRightPanel" style="min-height:0;">${trackingRightPanelHTML()}</div>
+  </div>`;
+}
+
+function selectTrackingTruck(id){
+  state.trackingSelectedId = id;
+  const listEl = document.getElementById('truckListItems');
+  if(listEl) listEl.innerHTML = TRUCKS.map(truckListItemHTML).join('');
+  const mapEl = document.getElementById('mapContainer');
+  if(mapEl){ mapEl.innerHTML = mapPanelHTML(); wireMapInteractions(); }
+  setTimeout(()=>highlightShipmentRoute(id), 120);
+  const panelEl = document.getElementById('trackingRightPanel');
+  if(panelEl) panelEl.innerHTML = trackingRightPanelHTML();
+}
+function updateTrackingRightPanelLive(){
+  const t = TRUCKS.find(x=>x.id===state.trackingSelectedId);
+  if(!t) return;
+  const s = TRACK_STATE[t.id];
+  const pText = document.getElementById('trkProgressText');
+  const pBar = document.getElementById('trkProgressBar');
+  const speedEl = document.getElementById('trkSpeed');
+  const distEl = document.getElementById('trkDist');
+  if(pText) pText.textContent = s.progress.toFixed(0)+'%';
+  if(pBar) pBar.style.width = s.progress+'%';
+  if(speedEl) speedEl.textContent = s.speed+' km/h';
+  if(distEl) distEl.textContent = s.distRemaining+' km';
+}
+function addYardEvent(icon,type,text){
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB',{hour12:false});
+  YARD_EVENTS.unshift({time,icon,type,text});
+  YARD_EVENTS = YARD_EVENTS.slice(0,12);
+}
+function assignDock(truckId, dockId){
+  const t = TRUCKS.find(x=>x.id===truckId);
+  if(!t || !DOCKS[dockId] || DOCKS[dockId].status==="Maintenance") return;
+  if(t.dock && DOCKS[t.dock]){
+    DOCKS[t.dock].status="Available"; DOCKS[t.dock].truck=null; DOCKS[t.dock].availableIn=0;
+  }
+  DOCKS[dockId].status="Occupied";
+  DOCKS[dockId].truck=truckId;
+  DOCKS[dockId].availableIn=35;
+  t.dock=dockId;
+  t.yardStatus="Dock Assigned";
+  addYardEvent("🟢","Assignment",`${truckId} / ${t.trailer} assigned to Dock ${dockId}`);
+  addToast({type:"success", title:`Dock ${dockId} assigned successfully`, msg:`${truckId} → ${dockId}`});
+  const panelEl = document.getElementById('trackingRightPanel');
+  if(panelEl) panelEl.innerHTML = trackingRightPanelHTML();
+  if(state.page==="yard") renderMain();
+}
+function triggerDockDisruption(){
+  const d = DOCKS.D04;
+  d.status="Maintenance"; d.availableIn=999;
+  const affected = d.truck;
+  if(affected){
+    const t=TRUCKS.find(x=>x.id===affected);
+    if(t) t.dock="—";
+    d.truck=null;
+    addYardEvent("🚨","Disruption",`Dock D04 became unavailable; reassignment required for ${affected}`);
+    ALERTS_FULL.unshift({sev:"High",cat:"Dock",time:"Now",title:"Dock D04 unavailable",desc:`Equipment issue requires reassignment of ${affected}.`,impact:"Potential arrival and unloading delay.",action:"Reassign dock",status:"Open"});
+    addToast({type:"warning",title:"Dock D04 unavailable",msg:"Reassignment recommendation generated"});
+  }
+  renderMain();
+}
+
+
+/* ============================== SHARED STAT TILE ============================== */
+function impactStat(label, value, color){
+  return `
+  <div class="card" style="padding:14px 16px;">
+    <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.4px;">${label}</div>
+    <div class="mono" style="font-size:19px; font-weight:700; margin-top:6px; color:${color};">${value}</div>
+  </div>`;
+}
+
+/* ============================== S&OP PLANNING PAGE ============================== */
+function sopTabsHTML(){
+  const tabs = [["supply","Supply Plan"],["capacity","Production Capacity"]];
+  return tabs.map(([k,l])=>`
+    <button onclick="setSopTab('${k}')" class="mono focus-ring" style="font-size:11.5px; font-weight:700; padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:${state.sopTab===k?'var(--cyan)':'var(--card)'}; color:${state.sopTab===k?'#150B2E':'var(--text-sec)'};">${l}</button>`).join('');
+}
+function setSopTab(k){
+  state.sopTab = k;
+  document.getElementById('sopTabsRegion').innerHTML = sopTabsHTML();
+  document.getElementById('sopContentRegion').innerHTML = state.sopTab==='supply' ? sopSupplyPanelHTML() : sopCapacityPanelHTML();
+}
+function sopSupplyPanelHTML(){
+  const forecastDemand=11850, availableInv=4200, plannedProd=8400, gap=(availableInv+plannedProd)-forecastDemand;
+  return `
+  <div class="card" style="padding:22px;">
+    <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Supply vs Demand</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;">
+      ${impactStat("Forecast Demand", forecastDemand.toLocaleString()+" units", "#FF4FA3")}
+      ${impactStat("Available Inventory", availableInv.toLocaleString()+" units", "#1FD9A0")}
+      ${impactStat("Planned Production", plannedProd.toLocaleString()+" units", "#38BDF8")}
+      ${impactStat("Supply Gap", (gap>=0?'+':'')+gap.toLocaleString()+" units", gap<0?'#FF7A7A':'#34E2B0')}
+    </div>
+    ${gap<0 ? `
+    <div style="margin-top:18px; background:rgba(255,92,92,0.08); border:1px solid rgba(255,92,92,0.3); border-left:3px solid #FF5C5C; border-radius:10px; padding:14px 16px;">
+      <div style="font-size:13px; font-weight:700;">🔴 Potential supply shortfall</div>
+      <div style="font-size:12px; color:var(--text-sec); margin-top:5px;">Available inventory plus planned production falls short of forecast demand by ${Math.abs(gap).toLocaleString()} units.</div>
+      <button onclick="addToast({type:'info', title:'Mitigation plan created', msg:'Routed to production planning team'})" class="mono focus-ring" style="margin-top:10px; font-size:11px; font-weight:700; color:#FF7A7A; border:1px solid #FF7A7A55; padding:6px 12px; border-radius:7px; background:transparent;">Create mitigation plan →</button>
+    </div>` : ''}
+  </div>`;
+}
+function togglePlantDetail(name){
+  const el = document.getElementById('plantDetail-'+name);
+  if(!el) return;
+  el.style.display = el.style.display === 'grid' ? 'none' : 'grid';
+}
+function sopCapacityPanelHTML(){
+  return `
+  <div class="card" style="padding:22px;">
+    <div style="font-size:13px; font-weight:700; margin-bottom:16px;">Production Capacity by Plant</div>
+    <div style="font-size:11px; color:var(--text-muted); margin-bottom:16px;">Click a plant to view constraints and lead time</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      ${PLANT_CAPACITY.map(p=>`
+        <div>
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:5px;">
+            <span style="font-weight:600;">${p.name}</span>
+            <span class="mono" style="font-weight:700; color:${p.util>88?'#FF7A7A':p.util>75?'#FFC94D':'#34E2B0'}">${p.util}%</span>
+          </div>
+          <div style="height:8px; background:var(--bg2); border-radius:5px; overflow:hidden; cursor:pointer;" onclick="togglePlantDetail('${p.name}')">
+            <div style="height:100%; width:${p.util}%; background:${p.util>88?'#FF5C5C':p.util>75?'#FFAB2E':'#1FD9A0'}; border-radius:5px;"></div>
+          </div>
+          <div id="plantDetail-${p.name}" style="display:none; margin-top:10px; padding:12px; background:var(--bg2); border-radius:8px; font-size:11.5px; color:var(--text-sec); grid-template-columns:1fr 1fr; gap:8px;">
+            <div>Planned production: <b class="mono" style="color:var(--text);">${p.planned.toLocaleString()} u</b></div>
+            <div>Available capacity: <b class="mono" style="color:var(--text);">${p.available.toLocaleString()} u</b></div>
+            <div>Constraint: <b style="color:var(--text);">${p.constraint}</b></div>
+            <div>Lead time: <b style="color:var(--text);">${p.leadTime}</b></div>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+function sopPageHTML(){
+  return `
+  <div style="display:flex; flex-direction:column; gap:16px; padding:22px 26px 50px;">
+    <div id="sopTabsRegion" style="display:flex; gap:8px;">${sopTabsHTML()}</div>
+    <div id="sopContentRegion">${state.sopTab==='supply'?sopSupplyPanelHTML():sopCapacityPanelHTML()}</div>
+  </div>`;
+}
+
+/* ============================== DEMAND PLANNING PAGE ============================== */
+function demandPageHTML(){
+  const forecastAccuracy=91.4, mape=8.6, demandForecast=11850;
+  const data = SERIES_90.slice(60);
+  const W=720,H=200,PAD=26;
+  const allVals = data.flatMap(d=>[d.demand,d.forecast]);
+  const maxV=Math.max(...allVals)*1.05, minV=Math.min(...allVals)*0.95;
+  const xFor=i=>PAD+(i/(data.length-1))*(W-PAD*2);
+  const yFor=v=>H-PAD-((v-minV)/(maxV-minV))*(H-PAD*1.6);
+  const lineDemand = data.map((d,i)=>xFor(i)+","+yFor(d.demand)).join(' ');
+  const lineForecast = data.map((d,i)=>xFor(i)+","+yFor(d.forecast)).join(' ');
+  return `
+  <div style="display:flex; flex-direction:column; gap:18px; padding:22px 26px 50px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px;">
+      ${impactStat("Forecast Accuracy", forecastAccuracy+"%", "#34E2B0")}
+      ${impactStat("MAPE", mape+"%", "#FFC94D")}
+      ${impactStat("Demand Forecast", demandForecast.toLocaleString()+" units", "#FF4FA3")}
+    </div>
+    <div class="card" style="padding:22px;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:4px;">Historical Demand vs Forecast</div>
+      <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:16px;">Last 30 days, daily units</div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">
+        <polyline points="${lineForecast}" fill="none" stroke="#7C5CFF" stroke-width="1.8" opacity="0.85"/>
+        <polyline points="${lineDemand}" fill="none" stroke="#FF4FA3" stroke-width="2.2"/>
+      </svg>
+      <div style="display:flex; gap:16px; margin-top:6px;">
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-sec);"><span style="width:9px; height:9px; border-radius:2px; background:#FF4FA3;"></span>Actual Demand</div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-sec);"><span style="width:9px; height:9px; border-radius:2px; background:#7C5CFF;"></span>Forecast</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+      <div class="card" style="padding:20px;">
+        <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Seasonality Signals</div>
+        <div style="font-size:12px; color:var(--text-sec); line-height:1.8;">
+          • Winter Jacket demand rising ahead of seasonal onset<br>
+          • Sportswear category up 21% in South region<br>
+          • Promotional lift detected for Performance Hoodie (+14%)
+        </div>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Leading Indicators</div>
+        <div style="font-size:12px; color:var(--text-sec); line-height:1.8;">
+          • Regional footfall trending up 8% week-over-week<br>
+          • Online search interest up 17% for outerwear<br>
+          • Distributor pre-orders ahead of plan by 6%
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================== INVENTORY INTELLIGENCE & PROJECTION ============================== */
+const INVENTORY_MODEL = [
+  {name:'Summer Linen',opening:8000,inbound:2000,production:12000,sales:[16500,11000,9500,7000,6200,5400],safety:3000,daily:550,link:'TRK-104'},
+  {name:'Denim Core',opening:6500,inbound:1000,production:9000,sales:[11200,10500,9800,9300,9000,8700],safety:4000,daily:373,link:'TRK-106'},
+  {name:'Activewear',opening:4200,inbound:0,production:7000,sales:[10500,9400,8900,8200,7800,7600],safety:2500,daily:350,link:'TRK-108'},
+  {name:'Winter Jacket',opening:14000,inbound:0,production:5000,sales:[7000,6200,5800,4900,4200,3500],safety:4000,daily:233,link:null}
+];
+const INV_MONTHS=['Aug','Sep','Oct','Nov','Dec','Jan'];
+function invRisk(closing,safety){ return closing<0?'Stockout':closing<safety?'Below Safety':closing>safety*2.2?'Excess':'Healthy'; }
+function invColor(r){ return r==='Stockout'?'#FF5C5C':r==='Below Safety'?'#FFAB2E':r==='Excess'?'#7C5CFF':'#34E2B0'; }
+function inventoryCalc(item, delayImpact){
+  let opening=item.opening, rows=[];
+  for(let i=0;i<INV_MONTHS.length;i++){
+    let inbound=i===0?item.inbound:0;
+    let production=i===0?item.production:0;
+    // E2 disruption: delayed fabric truck reduces first-month available production
+    if(delayImpact && item.link==='TRK-104' && i===0){ production=Math.max(0,production-3700); inbound=Math.max(0,inbound-1200); }
+    const sales=item.sales[i], closing=opening+inbound+production-sales;
+    rows.push({month:INV_MONTHS[i],opening,inbound,production,sales,closing,risk:invRisk(closing,item.safety)});
+    opening=closing;
+  }
+  return rows;
+}
+function setInventoryScenario(mode){ state.inventoryScenario=mode; renderMain(); }
+function inventoryPageHTML(){
+  const delayed=state.inventoryScenario==='delay';
+  const all=INVENTORY_MODEL.map(x=>({item:x,rows:inventoryCalc(x,delayed)}));
+  const first=all.map(x=>x.rows[0]);
+  const stockouts=first.filter(x=>x.risk==='Stockout'||x.risk==='Below Safety').length;
+  const excess=first.filter(x=>x.risk==='Excess').length;
+  const totalClosing=first.reduce((a,x)=>a+x.closing,0);
+  const selected=state.inventorySelected||'Summer Linen';
+  const model=all.find(x=>x.item.name===selected)||all[0];
+  const selectedRows=model.rows;
+  const min=Math.min(...selectedRows.map(x=>x.closing),0), max=Math.max(...selectedRows.map(x=>x.closing),model.item.safety*1.2,1);
+  const W=760,H=220,P=36, x=i=>P+i*((W-P*2)/(selectedRows.length-1)), y=v=>H-P-((v-min)/(max-min||1))*(H-P*2);
+  const pts=selectedRows.map((r,i)=>`${x(i)},${y(r.closing)}`).join(' ');
+  const safetyY=y(model.item.safety);
+  const riskCards=all.map(({item,rows})=>{const r=rows[0],c=invColor(r.risk); const reason=r.risk==='Stockout'||r.risk==='Below Safety'?'Demand exceeds available inventory and planned supply.':r.risk==='Excess'?'Low sell-through is leaving inventory above target.':'Inventory remains above safety stock.'; const action=r.risk==='Stockout'||r.risk==='Below Safety'?'Increase production, shift plant capacity or expedite linked fabric.':r.risk==='Excess'?'Reduce future production and evaluate markdown timing.':'Continue plan and monitor next S&OP cycle.'; return `<div style="padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg2)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${item.name}</b><span class="badge" style="background:${c}20;color:${c}">${r.risk}</span></div><div style="font-size:11px;color:var(--text-sec);margin-top:8px"><b>Why:</b> ${reason}</div><div style="font-size:11px;color:var(--text-sec);margin-top:6px"><b>Action:</b> ${action}</div>${item.link?`<button onclick="setPage('trucks');setTimeout(()=>selectTrackingTruck('${item.link}'),250)" class="nexus-secondary-btn focus-ring" style="margin-top:10px;font-size:10px">View ${item.link} execution impact →</button>`:''}</div>`; }).join('');
+  return `<div style="display:flex;flex-direction:column;gap:18px;padding:22px 26px 50px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><div style="font-size:14px;font-weight:700">Inventory Intelligence & Rolling Projection</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Six-month S&OP view linking demand, production, inbound execution and safety-stock risk.</div></div><div style="display:flex;gap:8px"><button onclick="setInventoryScenario('base')" class="nexus-secondary-btn focus-ring" style="${!delayed?'border-color:#34E2B0;color:#34E2B0':''}">Base Plan</button><button onclick="setInventoryScenario('delay')" class="nexus-secondary-btn focus-ring" style="${delayed?'border-color:#FFAB2E;color:#FFAB2E':''}">Simulate TRK-104 Delay</button></div></div>
+    ${delayed?`<div class="nexus-whatif-result" style="border-left:3px solid #FFAB2E"><b>Execution impact active:</b> TRK-104 delay reduces August Summer Linen inbound by 1,200 units of material availability and planned output by 3,700 units. The projection below recalculates automatically.</div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px">${impactStat('Projected closing',Math.max(0,totalClosing).toLocaleString()+' units','#34E2B0')}${impactStat('Safety-stock risks',stockouts,String(stockouts>0?'#FFAB2E':'#34E2B0'))}${impactStat('Excess inventory',excess+' collection','#7C5CFF')}${impactStat('Projection horizon','6 months','#5CC8FF')}</div>
+    <div class="card anim-in" style="padding:20px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><div style="font-size:13px;font-weight:700">Portfolio Inventory Projection</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">Click a collection to inspect its month-by-month inventory runway.</div></div></div><div style="overflow:auto;margin-top:14px"><table class="data-table" style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr><th>Collection</th><th>Opening</th><th>Confirmed Inbound</th><th>Planned Production</th><th>Aug Forecast Sales</th><th>Projected Closing</th><th>Safety Stock</th><th>Days of Cover</th><th>Risk</th></tr></thead><tbody>${all.map(({item,rows})=>{const r=rows[0],c=invColor(r.risk),days=Math.max(0,Math.round(r.closing/item.daily));return `<tr onclick="state.inventorySelected='${item.name}';renderMain()" style="cursor:pointer;background:${selected===item.name?'rgba(92,200,255,.06)':'transparent'}"><td style="font-weight:700">${item.name}</td><td class="mono">${item.opening.toLocaleString()}</td><td class="mono">${r.inbound.toLocaleString()}</td><td class="mono">${r.production.toLocaleString()}</td><td class="mono">${r.sales.toLocaleString()}</td><td class="mono" style="font-weight:800;color:${c}">${r.closing.toLocaleString()}</td><td class="mono">${item.safety.toLocaleString()}</td><td>${days} days</td><td><span class="badge" style="background:${c}20;color:${c}">${r.risk}</span></td></tr>`}).join('')}</tbody></table></div></div>
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start">
+      <div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700">${model.item.name} · 6-Month Inventory Runway</div><div style="font-size:11px;color:var(--text-muted);margin:4px 0 12px">Opening + inbound + production − forecast sales = projected closing inventory</div><svg viewBox="0 0 ${W} ${H}" width="100%" height="220"><line x1="${P}" x2="${W-P}" y1="${safetyY}" y2="${safetyY}" stroke="#FFAB2E" stroke-dasharray="5 5"/><polyline points="${pts}" fill="none" stroke="#34E2B0" stroke-width="3"/>${selectedRows.map((r,i)=>`<circle cx="${x(i)}" cy="${y(r.closing)}" r="5" fill="${invColor(r.risk)}"/> <text x="${x(i)}" y="${H-10}" text-anchor="middle" fill="#8FA3BF" font-size="11">${r.month}</text>`).join('')}<text x="${W-P}" y="${safetyY-7}" text-anchor="end" fill="#FFAB2E" font-size="10">Safety stock ${model.item.safety.toLocaleString()}</text></svg><div style="overflow:auto"><table class="data-table" style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px"><thead><tr><th>Month</th><th>Opening</th><th>Inbound</th><th>Production</th><th>Forecast Sales</th><th>Closing</th><th>Risk</th></tr></thead><tbody>${selectedRows.map(r=>`<tr><td><b>${r.month}</b></td><td>${r.opening.toLocaleString()}</td><td>${r.inbound.toLocaleString()}</td><td>${r.production.toLocaleString()}</td><td>${r.sales.toLocaleString()}</td><td style="font-weight:700;color:${invColor(r.risk)}">${r.closing.toLocaleString()}</td><td><span class="badge" style="background:${invColor(r.risk)}20;color:${invColor(r.risk)}">${r.risk}</span></td></tr>`).join('')}</tbody></table></div></div>
+      <div style="display:flex;flex-direction:column;gap:14px"><div class="card" style="padding:18px"><div style="font-size:12.5px;font-weight:700;margin-bottom:10px">Inventory Risk Intelligence</div><div style="display:flex;flex-direction:column;gap:10px">${riskCards}</div></div><div class="card" style="padding:18px"><div style="font-size:12.5px;font-weight:700">Recommended Scenario</div><div style="font-size:11.5px;color:var(--text-sec);line-height:1.6;margin-top:8px">For execution-driven shortages, compare <b>expedite fabric</b>, <b>shift capacity</b> and <b>accept service risk</b> before changing the approved S&OP plan.</div><button onclick="setPage('scenarios')" class="nexus-primary-btn focus-ring" style="margin-top:12px">Open What-If Scenarios →</button></div></div>
+    </div>
+  </div>`;
+}
+
+
+/* ============================== FABRIC & PROCUREMENT ============================== */
+function procurementPageHTML(){
+  const rows=[
+    ['Premium Linen','12,000 m','3,000 m','5,000 m','21 days','10,000 m','TRK-104','At Risk'],
+    ['Stretch Denim','8,400 m','6,200 m','3,000 m','14 days','3,000 m','TRK-106','On Track'],
+    ['Performance Knit','6,000 m','1,800 m','2,000 m','28 days','6,000 m','TRK-108','Watch']
+  ];
+  return `<div style="display:flex;flex-direction:column;gap:18px;padding:22px 26px 50px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;">
+      ${impactStat('Materials at risk','3','#FFAB2E')}${impactStat('MOQ compliant','100%','#34E2B0')}${impactStat('Avg lead time','21 days','#5CC8FF')}${impactStat('Linked inbound trucks','8','#7C5CFF')}
+    </div>
+    <div class="card anim-in" style="padding:22px;"><div style="font-size:14px;font-weight:700;">Fabric Procurement Optimizer</div><div style="font-size:11.5px;color:var(--text-muted);margin:4px 0 16px;">Recommendation considers required fabric, current stock, supplier MOQ, lead time and production need.</div><div style="overflow:auto"><table class="data-table" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr><th>Material</th><th>Required</th><th>On Hand</th><th>MOQ</th><th>Lead Time</th><th>Recommended Order</th><th>Execution Link</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr>${r.map((x,i)=>`<td ${i===7?'style="font-weight:700;color:'+(x==='At Risk'?'#FFAB2E':x==='Watch'?'#5CC8FF':'#34E2B0')+'"':''}>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="nexus-whatif-result" style="margin-top:16px"><b>Recommendation:</b> Premium Linen requires a 10,000 m order to satisfy MOQ, net requirement and safety stock. Its inbound execution is already linked to <b>TRK-104</b>.</div>
+    <button onclick="setPage('trucks');setTimeout(()=>selectTrackingTruck('TRK-104'),250)" class="nexus-secondary-btn focus-ring" style="margin-top:12px">Track TRK-104 on Live Map →</button></div></div>`;
+}
+/* ============================== MARKDOWN INTELLIGENCE ============================== */
+function markdownPageHTML(){
+ const products=[['Winter Denim Jacket','42%','5,800','3 weeks','15% markdown','Critical'],['Summer Linen Shirt','68%','3,200','6 weeks','Monitor','Watch'],['Denim Core','82%','1,100','8 weeks','No markdown','Healthy']];
+ return `<div style="display:flex;flex-direction:column;gap:18px;padding:22px 26px 50px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">${products.map((p,i)=>`<div class="card anim-in" style="padding:20px;animation-delay:${i*.05}s"><div style="font-weight:700">${p[0]}</div><div class="mono" style="font-size:30px;margin-top:16px;color:${p[5]==='Critical'?'#FFAB2E':p[5]==='Healthy'?'#34E2B0':'#5CC8FF'}">${p[1]}</div><div style="font-size:11px;color:var(--text-muted)">Sell-through</div><div style="margin-top:15px;font-size:11.5px;color:var(--text-sec)">Inventory: <b>${p[2]} units</b><br>Season remaining: <b>${p[3]}</b></div><div style="margin-top:14px;padding:10px;border-left:3px solid ${p[5]==='Critical'?'#FFAB2E':p[5]==='Healthy'?'#34E2B0':'#5CC8FF'};background:var(--bg2);font-size:12px"><b>Recommendation:</b> ${p[4]}</div></div>`).join('')}</div>
+ <div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700">Decision impact loop</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Markdown decision → demand reforecast → inventory projection → production and fabric plan → logistics execution. This closes the S&OP loop instead of treating markdown as an isolated sales decision.</div></div></div>`;
+}
+/* ============================== FINANCIAL IMPACT ============================== */
+function financialPageHTML(){
+ const cards=[['Base Plan','₹1.20 Cr','₹78 L','₹42 L','#34E2B0'],['High Demand','₹1.50 Cr','₹1.02 Cr','₹48 L','#5CC8FF'],['Markdown Scenario','₹1.10 Cr','₹78 L','₹32 L','#FFAB2E']];
+ return `<div style="display:flex;flex-direction:column;gap:18px;padding:22px 26px 50px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">${cards.map(c=>`<div class="card anim-in" style="padding:20px"><div style="font-weight:700">${c[0]}</div><div style="margin-top:16px;font-size:11px;color:var(--text-muted)">Revenue</div><div class="mono" style="font-size:24px">${c[1]}</div><div style="margin-top:10px;font-size:11px;color:var(--text-muted)">Cost</div><div class="mono">${c[2]}</div><div style="margin-top:10px;font-size:11px;color:var(--text-muted)">Projected margin</div><div class="mono" style="font-size:22px;color:${c[4]}">${c[3]}</div></div>`).join('')}</div>
+ <div class="card" style="padding:22px"><div style="font-size:13px;font-weight:700">Integrated financial planning</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Demand, production, procurement and markdown decisions are evaluated for revenue, cost and margin before the executive S&OP decision is approved.</div><button onclick="setPage('scenarios')" class="nexus-secondary-btn focus-ring" style="margin-top:14px">Open What-If Scenarios →</button></div></div>`;
+}
+/* ============================== DECISION CENTER ============================== */
+function decisionPageHTML(){
+ const decisions=[['Fabric Delay · TRK-104','22-minute delay may affect Summer Linen production and projected inventory coverage.','Compare expedite, resequence and service-risk scenarios in Inventory Intelligence.','inventory'],['Plant Capacity Gap','Bangalore exceeds plan while Hyderabad has available capacity.','Shift 1,800 units to Hyderabad.','sop'],['Markdown Risk','Winter Denim sell-through is 42% with 3 weeks remaining.','Start a 15% markdown next week.','markdown']];
+ return `<div style="display:flex;flex-direction:column;gap:18px;padding:22px 26px 50px;"><div class="card anim-in" style="padding:22px"><div style="font-size:14px;font-weight:700">Active cross-functional decisions</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Planning and real-time execution exceptions are brought into one decision queue.</div>${decisions.map((d,i)=>`<div style="margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--bg2)"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>${i+1}. ${d[0]}</b><span class="badge" style="background:rgba(255,171,46,.14);color:#FFAB2E">Decision required</span></div><div style="font-size:11.5px;color:var(--text-sec);margin-top:8px">${d[1]}</div><div style="margin-top:9px;font-size:12px"><b>Recommended action:</b> ${d[2]}</div><button onclick="setPage('${d[3]}')" class="nexus-secondary-btn focus-ring" style="margin-top:12px">Review supporting data →</button></div>`).join('')}</div>
+ <div class="card" style="padding:20px"><div style="font-size:13px;font-weight:700">Closed-loop architecture</div><div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px"><span class="badge" style="background:var(--bg2);color:var(--text-sec)">Demand Plan</span><span>→</span><span class="badge" style="background:var(--bg2);color:var(--text-sec)">Fabric & Capacity</span><span>→</span><span class="badge" style="background:var(--bg2);color:var(--text-sec)">Production</span><span>→</span><span class="badge" style="background:var(--bg2);color:var(--text-sec)">Shipment</span><span>→</span><span class="badge" style="background:var(--bg2);color:var(--text-sec)">Live Truck + Yard + Dock</span><span>→</span><span class="badge" style="background:rgba(31,217,160,.12);color:#34E2B0">Feedback to S&OP</span></div></div></div>`;
+}
+
+/* ============================== SHIPMENTS PAGE ============================== */
+function shipmentsPageHTML(){
+  const onTime = TRUCKS.filter(t=>t.status==='On Time'||t.status==='Arrived').length;
+  return `
+  <div style="display:flex; flex-direction:column; gap:18px; padding:22px 26px 50px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;">
+      ${impactStat("Total Shipments", "24", "#7C5CFF")}
+      ${impactStat("On Time (shown)", onTime+" / "+TRUCKS.length, "#34E2B0")}
+      ${impactStat("Delayed", TRUCKS.filter(t=>t.status==='Delayed').length, "#FF7A7A")}
+      ${impactStat("At Risk", TRUCKS.filter(t=>t.status==='At Risk').length, "#FFC94D")}
+    </div>
+    ${shipmentsTableHTML()}
+  </div>`;
+}
+
+/* ============================== YARD & SMART DOCK CONTROL ============================== */
+function parseETA(v){ const m=/^(\d{1,2}):(\d{2})$/.exec(v||''); return m?Number(m[1])*60+Number(m[2]):0; }
+function priorityWeight(p){ return p==='High'?20:p==='Medium'?12:7; }
+function dockRecommendation(t){
+  const etaMinutes = Number((TRACK_STATE[t.id]?.distRemaining||0) / Math.max(TRACK_STATE[t.id]?.speed||40,1) * 60);
+  const candidates = Object.entries(DOCKS).map(([id,d])=>{
+    const compatible=d.supported.includes(t.loadType);
+    const operational=d.status!=="Maintenance";
+    const availableAt=d.status==='Available'?0:Math.max(0,d.availableIn||0);
+    const availabilityScore=availableAt===0?35:Math.max(0,35-Math.max(0,availableAt-etaMinutes)*1.2);
+    const compatibilityScore=compatible?25:0;
+    const etaScore=availableAt<=etaMinutes+12?10:Math.max(0,10-(availableAt-etaMinutes)/3);
+    const proximityScore=Math.max(0,10-(d.distance||8));
+    const priorityScore=priorityWeight(t.priority);
+    const score=operational&&compatible?Math.round(availabilityScore+compatibilityScore+etaScore+proximityScore+priorityScore):-999;
+    return {id,d,score,compatible,etaMinutes:Math.round(etaMinutes),availableAt:Math.round(availableAt),breakdown:{availability:Math.round(availabilityScore),compatibility:compatibilityScore,priority:priorityScore,eta:Math.round(etaScore),proximity:Math.round(proximityScore)}};
+  }).filter(x=>x.compatible&&x.d.status!=="Maintenance").sort((a,b)=>b.score-a.score);
+  const best=candidates[0];
+  return {best,candidates,confidence:best?Math.min(98,Math.max(70,best.score)):0};
+}
+function buildDockSchedule(){
+  return Object.entries(DOCKS).filter(([id])=>id!=='D07').map(([id,d])=>{
+    const assigned=d.truck?TRUCKS.find(t=>t.id===d.truck):null;
+    const eta=assigned?parseETA(assigned.eta):0;
+    const end=assigned?eta+Math.max(30,d.availableIn||35):0;
+    return {id,status:d.status,truck:d.truck,eta,end,availableAt:d.status==='Available'?0:d.availableIn||0};
+  });
+}
+function predictConflicts(){
+  const incoming=TRUCKS.filter(t=>t.status!=='Arrived'&&t.status!=='On Time'||false);
+  const critical=TRUCKS.filter(t=>t.priority==='High'&&t.status!=='Arrived');
+  const byType={}; critical.forEach(t=>(byType[t.loadType]??=[]).push(t));
+  const conflicts=[];
+  Object.entries(byType).forEach(([type,list])=>{
+    const compatible=Object.entries(DOCKS).filter(([_,d])=>d.status!=='Maintenance'&&d.supported.includes(type));
+    if(list.length>compatible.length && list.length>1) conflicts.push({type,trucks:list.map(x=>x.id),docks:compatible.map(x=>x[0])});
+  });
+  // Explicit demo conflict when two high priority arrivals are within 35 minutes and only limited compatible capacity exists.
+  if(!conflicts.length){
+    const near=critical.slice(0,2); if(near.length===2) conflicts.push({type:'Shared high-priority capacity',trucks:near.map(x=>x.id),docks:Object.keys(DOCKS).filter(k=>DOCKS[k].status!=='Maintenance').slice(0,2),watch:true});
+  }
+  return conflicts;
+}
+function yardMetrics(){
+  const docks=Object.values(DOCKS);
+  const occupied=docks.filter(d=>d.status==="Occupied").length;
+  const available=docks.filter(d=>d.status==="Available").length;
+  return {occupied,available,util:Math.round(occupied/docks.length*100)};
+}
+function dockCardHTML(code){
+  const d=DOCKS[code], colors={Available:"#34E2B0",Occupied:"#FFAB2E",Maintenance:"#64748B"};
+  const bg={Available:"rgba(52,226,176,.08)",Occupied:"rgba(255,171,46,.08)",Maintenance:"rgba(100,116,139,.08)"};
+  return `<div onclick="selectYardDock('${code}')" class="focus-ring" style="cursor:pointer;padding:16px;border-radius:14px;background:${bg[d.status]};border:1px solid ${colors[d.status]}55;text-align:left;min-height:122px;">
+    <div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:17px;font-weight:800">${code}</div><span style="width:8px;height:8px;border-radius:50%;background:${colors[d.status]}"></span></div>
+    <div style="font-size:10px;font-weight:800;color:${colors[d.status]};margin-top:7px;text-transform:uppercase">${d.status}</div>
+    <div class="mono" style="font-size:10px;color:var(--text-muted);margin-top:7px">${d.truck||"No trailer assigned"}</div>
+    <div style="font-size:10px;color:var(--text-sec);margin-top:4px">Zone ${d.zone} · ${d.availableIn===0?"Ready":d.availableIn+" min"}</div>
+  </div>`;
+}
+function eventFeedHTML(){
+  return `<div class="card" style="padding:18px;max-height:360px;overflow:auto"><div style="font-size:12px;font-weight:800;margin-bottom:12px">Live WMS / Operations Feed</div>
+  ${YARD_EVENTS.map(e=>`<div style="display:grid;grid-template-columns:26px 66px 1fr;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);font-size:11px"><div>${e.icon}</div><div class="mono" style="font-size:9.5px;color:var(--text-muted)">${e.time}</div><div><span class="badge" style="font-size:8px;padding:2px 6px;box-shadow:none">${e.type}</span><div style="color:var(--text-sec);margin-top:5px">${e.text}</div></div></div>`).join("")}</div>`;
+}
+function incomingQueueHTML(){
+  const incoming=TRUCKS.filter(t=>t.status!=="Arrived").sort((a,b)=>({High:0,Medium:1,Low:2}[a.priority]-{High:0,Medium:1,Low:2}[b.priority]));
+  return `<div class="card" style="padding:18px"><div style="font-size:12px;font-weight:800;margin-bottom:12px">Incoming Trailer Queue</div>
+  <div style="display:flex;flex-direction:column;gap:9px">${incoming.map(t=>{
+    const rec=dockRecommendation(t);
+    return `<div onclick="selectIncomingTruck('${t.id}')" style="cursor:pointer;padding:12px;border-radius:10px;background:${state.yardSelectedId===t.id?"rgba(98,214,255,.11)":"var(--bg2)"};border:1px solid ${state.yardSelectedId===t.id?"rgba(98,214,255,.45)":"var(--border)"}">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b class="mono">${t.id}</b><span style="font-size:10px;color:${t.priority==="High"?"#FF7A7A":t.priority==="Medium"?"#FFC94D":"#94A3B8"}">${t.priority} priority</span></div>
+      <div style="font-size:10.5px;color:var(--text-sec);margin-top:5px">${t.trailer} · ${t.loadType}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">ETA ${t.eta} · ${rec.best?"Suggested "+rec.best.id:"No compatible dock"}</div>
+    </div>`}).join("")}</div></div>`;
+}
+function scoreRow(label,val,max){ const pct=Math.max(0,Math.min(100,val/max*100)); return `<div class="nexus-score-row"><span>${label}</span><div class="nexus-score-track"><i style="width:${pct}%"></i></div><b>${val}/${max}</b></div>`; }
+function recommendationPanelHTML(){
+  const id=state.yardSelectedId || "TRK-104";
+  const t=TRUCKS.find(x=>x.id===id)||TRUCKS[3], rec=dockRecommendation(t);
+  if(!rec.best) return `<div class="card" style="padding:22px"><b>No compatible dock currently available.</b></div>`;
+  const b=rec.best, x=b.breakdown;
+  return `<div class="card anim-in nexus-decision" style="padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:800">Explainable Dock Recommendation</div><div class="mono" style="font-size:22px;font-weight:800;margin-top:5px">${b.id} <span style="font-size:11px;color:var(--text-muted)">Score ${b.score}/100</span></div></div><div style="font-size:12px;font-weight:800;color:#34E2B0">${rec.confidence}% match</div></div>
+    <div style="font-size:11.5px;color:var(--text-sec);margin-top:10px">${t.id} · ${t.trailer} · ${t.loadType} · ETA ${t.eta}</div>
+    <div class="nexus-scorecard">${scoreRow('Availability',x.availability,35)}${scoreRow('Load compatibility',x.compatibility,25)}${scoreRow('Priority',x.priority,20)}${scoreRow('ETA alignment',x.eta,10)}${scoreRow('Proximity',x.proximity,10)}</div>
+    <div class="nexus-reason"><b>Why ${b.id}?</b> Compatible with ${t.loadType}, ${b.availableAt===0?'ready now':`available in ${b.availableAt} min`}, and offers the strongest combined operational score.</div>
+    <button onclick="assignDock('${t.id}','${b.id}')" class="focus-ring nexus-primary-btn">Assign ${b.id} to ${t.id}</button>
+  </div>`;
+}
+function dockTimelineHTML(){
+ const rows=buildDockSchedule();
+ return `<div class="card nexus-timeline" style="padding:18px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><div style="font-size:12px;font-weight:800">Dock Availability Timeline</div><div style="font-size:10.5px;color:var(--text-muted);margin-top:4px">Future availability is considered, not only current status.</div></div><span class="badge">Next 60 min</span></div><div style="margin-top:14px;display:flex;flex-direction:column;gap:9px">${rows.map(r=>`<div class="nexus-timeline-row"><b class="mono">${r.id}</b><div class="nexus-timebar"><i style="left:0;width:${r.status==='Available'?8:Math.min(92,Math.max(25,(r.availableAt||35)/60*100))}%" class="${r.status==='Available'?'free':'busy'}"></i></div><span>${r.status==='Available'?'Ready now':`${r.availableAt} min · ${r.truck||'Occupied'}`}</span></div>`).join('')}</div></div>`;
+}
+function conflictPanelHTML(){
+ const cs=predictConflicts(); const c=cs[0];
+ return `<div class="card nexus-conflict" style="padding:18px"><div style="font-size:12px;font-weight:800">Predictive Conflict Monitor</div>${c?`<div style="margin-top:10px;font-size:11.5px"><b>${c.trucks.join(' + ')}</b> may compete for <b>${c.type}</b>.</div><div style="font-size:10.5px;color:var(--text-muted);margin-top:6px">Capacity under watch: ${c.docks.join(', ')}. NEXUS flags the conflict before arrival and recommends sequencing higher-priority work first.</div><button onclick="runWhatIf()" class="focus-ring nexus-secondary-btn">Run What-If Analysis</button>`:`<div style="margin-top:10px;color:#34E2B0;font-size:11px">No predicted conflict in the next scheduling window.</div>`}</div>`;
+}
+function runWhatIf(){ const t=TRUCKS.find(x=>x.id===state.yardSelectedId)||TRUCKS[3]; const rec=dockRecommendation(t); const alt=rec.candidates[1]; addYardEvent('🔮','What-if',`${t.id} delayed by 30 min: keep ${rec.best.id} as preferred; ${alt?alt.id:'no alternative'} remains fallback.`); addToast({type:'info',title:'What-if analysis complete',msg:`30-minute delay scenario evaluated for ${t.id}`}); const box=document.getElementById('whatIfResult'); if(box) box.innerHTML=`<div class="nexus-whatif-result"><b>Scenario result:</b> If ${t.id} is delayed by 30 min, ${rec.best.id} remains preferred. ${alt?`Fallback: ${alt.id} (${alt.score}/100).`:''}</div>`; }
+function selectIncomingTruck(id){state.yardSelectedId=id; const el=document.getElementById("yardDecisionRegion"); if(el) el.innerHTML=recommendationPanelHTML(); const q=document.getElementById("yardQueueRegion"); if(q) q.innerHTML=incomingQueueHTML();}
+function selectYardDock(code){
+  const d=DOCKS[code], el=document.getElementById("yardDockDetail"); if(!el)return;
+  const t=d.truck?TRUCKS.find(x=>x.id===d.truck):null;
+  el.innerHTML=`<div class="card anim-in" style="padding:18px"><b>Dock ${code} · Zone ${d.zone}</b><div style="font-size:11.5px;color:var(--text-sec);margin-top:8px">Status: ${d.status} · Supports: ${d.supported.join(", ")}</div>${t?`<div style="margin-top:8px;font-size:11.5px">${t.id} · ${t.trailer} · ${t.loadType}</div>`:""}</div>`;
+}
+function yardPageHTML(){
+  const m=yardMetrics(); if(!state.yardSelectedId)state.yardSelectedId="TRK-104";
+  const active=TRUCKS.filter(t=>t.status!=='Arrived').length;
+  return `<div class="nexus-yard-page">
+    <div class="nexus-yard-head"><div><div style="font-size:22px;font-weight:800">Yard Command Center</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">Truck → trailer → arrival window → explainable decision → reassignment</div></div><button onclick="triggerDockDisruption()" class="focus-ring nexus-danger-btn">Simulate Dock D04 Failure</button></div>
+    <div class="nexus-kpi-grid">${impactStat("Active Arrivals",active,"#62D6FF")}${impactStat("Available Docks",m.available,"#34E2B0")}${impactStat("Occupied Docks",m.occupied,"#FFAB2E")}${impactStat("Dock Utilization",m.util+"%",m.util>85?"#FF7A7A":"#34E2B0")}${impactStat("Decision Mode","Explainable","#A78BFA")}</div>
+    <div class="nexus-yard-grid"><div class="card" style="padding:20px"><div style="font-size:12px;font-weight:800;margin-bottom:14px">Interactive Dock Layout</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px">${Object.keys(DOCKS).map(dockCardHTML).join("")}</div><div id="yardDockDetail" style="margin-top:14px"></div></div><div id="yardDecisionRegion">${recommendationPanelHTML()}</div></div>
+    <div class="nexus-yard-grid-secondary"><div id="yardQueueRegion">${incomingQueueHTML()}</div>${dockTimelineHTML()}</div>
+    <div class="nexus-yard-grid-secondary">${conflictPanelHTML()}<div id="whatIfResult"></div>${eventFeedHTML()}</div>
+  </div>`;
+}
+
+/* ============================== ALERTS CENTER PAGE ============================== */
+function alertsFilteredList(){
+  return ALERTS_FULL.filter(a=>{
+    const sevMatch = state.alertSevFilter==='All' || (state.alertSevFilter==='Resolved' ? a.status==='Resolved' : (a.sev===state.alertSevFilter && a.status==='Open'));
+    const catMatch = state.alertCatFilter==='All' || a.cat===state.alertCatFilter;
+    return sevMatch && catMatch;
+  });
+}
+function alertRowHTML(a){
+  const idx = ALERTS_FULL.indexOf(a);
+  const sevColor = {Critical:'#FF5C5C', High:'#FFAB2E', Medium:'#F5C242', Low:'#5CC8FF'}[a.sev] || '#94A3B8';
+  return `
+  <div class="card" style="padding:16px 18px; opacity:${a.status==='Resolved'?0.65:1};">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="badge" style="background:${sevColor}22; color:${sevColor};">${a.sev}</span>
+        <span class="badge" style="background:var(--bg2); color:var(--text-sec); border:1px solid var(--border);">${a.cat}</span>
+        <span style="font-size:13px; font-weight:700;">${a.title}</span>
+      </div>
+      <span class="mono" style="font-size:10.5px; color:var(--text-muted);">${a.time}</span>
+    </div>
+    <div style="font-size:12px; color:var(--text-sec); margin-top:8px;">${a.desc}</div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-top:5px;"><b style="color:var(--text-sec);">Impact:</b> ${a.impact}</div>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      ${a.status==='Open' ? `
+        <button onclick="resolveAlert(${idx})" class="mono focus-ring" style="font-size:10.5px; font-weight:700; color:#34E2B0; border:1px solid #34E2B055; padding:6px 12px; border-radius:7px; background:transparent;">Resolve</button>
+        <button onclick='addToast({type:"info", title:"Alert assigned", msg:"${a.title}"})' class="mono focus-ring" style="font-size:10.5px; font-weight:700; color:var(--text-sec); border:1px solid var(--border); padding:6px 12px; border-radius:7px; background:transparent;">Assign</button>` :
+        `<span class="mono" style="font-size:10.5px; color:#34E2B0; font-weight:700;">✓ Resolved</span>`}
+    </div>
+  </div>`;
+}
+function resolveAlert(idx){
+  ALERTS_FULL[idx].status = 'Resolved';
+  addToast({type:"success", title:"Alert resolved", msg:ALERTS_FULL[idx].title});
+  renderAlertsList();
+}
+function renderAlertsList(){
+  const el = document.getElementById('alertsListRegion');
+  if(!el) return;
+  const list = alertsFilteredList();
+  el.innerHTML = list.length ? list.map(alertRowHTML).join('') : `<div class="card" style="padding:30px; text-align:center; color:var(--text-muted); font-size:12.5px;">No alerts match this filter.</div>`;
+}
+function setAlertSevFilter(v){ state.alertSevFilter=v; document.getElementById('alertSevTabs').innerHTML = alertSevTabsHTML(); renderAlertsList(); }
+function setAlertCatFilter(v){ state.alertCatFilter=v; renderAlertsList(); }
+function alertSevTabsHTML(){
+  return ['All','Critical','High','Medium','Resolved'].map(v=>`
+    <button onclick="setAlertSevFilter('${v}')" class="mono focus-ring" style="font-size:11px; font-weight:700; padding:6px 13px; border-radius:100px; border:1px solid var(--border); background:${state.alertSevFilter===v?'var(--cyan)':'transparent'}; color:${state.alertSevFilter===v?'#150B2E':'var(--text-sec)'};">${v}</button>`).join('');
+}
+function alertsPageHTML(){
+  const cats = ['All','Demand','Inventory','Production','Shipment','Truck','Dock'];
+  return `
+  <div style="display:flex; flex-direction:column; gap:16px; padding:22px 26px 50px;">
+    <div class="card anim-in" style="padding:18px 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div id="alertSevTabs" style="display:flex; gap:6px; flex-wrap:wrap;">${alertSevTabsHTML()}</div>
+        <select onchange="setAlertCatFilter(this.value)" class="mono focus-ring" style="background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:11.5px; color:var(--text);">
+          ${cats.map(c=>`<option ${state.alertCatFilter===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div id="alertsListRegion" style="display:flex; flex-direction:column; gap:10px;">${alertsFilteredList().map(alertRowHTML).join('')}</div>
+  </div>`;
+}
+
+/* ============================== SCENARIO PLANNING PAGE ============================== */
+function scenarioImpact(){
+  const sc = state.scenario;
+  const newProdUtil = clamp(82 + sc.demandIncrease*0.55 - sc.prodCapacityChange*0.9, 0, 100);
+  const inventoryDeltaPct = -(sc.demandIncrease*0.65 + sc.transportDelay*1.2);
+  const stockoutRiskPct = Math.max(0, sc.demandIncrease*0.85 - sc.prodCapacityChange*0.4 + sc.transportDelay*1.5);
+  const shipmentReq = Math.round(sc.demandIncrease/4 + sc.transportDelay*0.3);
+  const dockUtil = clamp(74 + sc.demandIncrease*0.45 + sc.transportDelay*1.8, 0, 100);
+  return {newProdUtil, inventoryDeltaPct, stockoutRiskPct, shipmentReq, dockUtil};
+}
+function scenarioActions(imp, sc){
+  const actions = [];
+  if(sc.demandIncrease > 8) actions.push(`Increase production by ${Math.round(sc.demandIncrease*0.4)}%`);
+  if(imp.stockoutRiskPct > 15) actions.push(`Expedite ${Math.max(1,Math.round(imp.stockoutRiskPct/10))} shipments`);
+  if(imp.dockUtil > 85) actions.push("Assign additional dock capacity");
+  if(imp.inventoryDeltaPct < -10) actions.push("Rebalance inventory between DCs");
+  if(sc.transportDelay >= 3) actions.push("Notify customers of potential delivery delay");
+  if(actions.length===0) actions.push("No corrective action required — plan remains within tolerance");
+  return actions;
+}
+function scenarioSliderRow(label, id, min, max, step, value, suffix){
+  return `
+  <div style="margin-bottom:18px;">
+    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+      <span style="color:var(--text-sec);">${label}</span>
+      <span id="${id}Val" class="mono" style="font-weight:700; color:var(--cyan);">${value>0 && id==='prodSlider'?'+':''}${value}${suffix}</span>
+    </div>
+    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}"
+      oninput="onScenarioSlider('${id}', this.value)" style="width:100%; accent-color:#7C5CFF;">
+  </div>`;
+}
+const SCENARIO_SLIDER_MAP = {demandSlider:'demandIncrease', prodSlider:'prodCapacityChange', delaySlider:'transportDelay', leadSlider:'leadTime'};
+const SCENARIO_SUFFIX_MAP = {demandSlider:'%', prodSlider:'%', delaySlider:' days', leadSlider:' days'};
+function onScenarioSlider(id, val){
+  val = Number(val);
+  state.scenario[SCENARIO_SLIDER_MAP[id]] = val;
+  document.getElementById(id+'Val').textContent = (val>0 && id==='prodSlider'?'+':'') + val + SCENARIO_SUFFIX_MAP[id];
+  renderScenarioImpact();
+}
+function renderScenarioImpact(){
+  const imp = scenarioImpact();
+  const sc = state.scenario;
+  const panel = document.getElementById('scenarioImpactPanel');
+  if(!panel) return;
+  panel.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;">
+      ${impactStat("Demand", (sc.demandIncrease>=0?'+':'')+sc.demandIncrease+'%', sc.demandIncrease>15?'#FF7A7A':'#34E2B0')}
+      ${impactStat("Inventory", imp.inventoryDeltaPct.toFixed(1)+'%', imp.inventoryDeltaPct<-10?'#FF7A7A':'#FFC94D')}
+      ${impactStat("Stockout Risk", '+'+imp.stockoutRiskPct.toFixed(1)+'%', imp.stockoutRiskPct>15?'#FF7A7A':'#34E2B0')}
+      ${impactStat("Production Utilization", imp.newProdUtil.toFixed(0)+'%', imp.newProdUtil>90?'#FF7A7A':'#34E2B0')}
+      ${impactStat("Shipment Requirement", '+'+imp.shipmentReq+' trucks', '#7C5CFF')}
+      ${impactStat("Dock Utilization", imp.dockUtil.toFixed(0)+'%', imp.dockUtil>85?'#FF7A7A':'#34E2B0')}
+    </div>
+    <div style="margin-top:20px;">
+      <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Recommended Actions</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${scenarioActions(imp, sc).map((a,i)=>`
+          <div style="display:flex; align-items:center; gap:10px; background:var(--bg2); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:12px;">
+            <span class="mono" style="color:var(--cyan); font-weight:700;">${i+1}</span> ${a}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+function runPresetScenario(){
+  state.scenario = {demandIncrease:20, prodCapacityChange:0, transportDelay:2, leadTime:7};
+  document.getElementById('demandSlider').value=20; document.getElementById('demandSliderVal').textContent='20%';
+  document.getElementById('prodSlider').value=0; document.getElementById('prodSliderVal').textContent='0%';
+  document.getElementById('delaySlider').value=2; document.getElementById('delaySliderVal').textContent='2 days';
+  document.getElementById('leadSlider').value=7; document.getElementById('leadSliderVal').textContent='7 days';
+  renderScenarioImpact();
+  const panel = document.getElementById('scenarioImpactPanel');
+  if(panel){ panel.style.transition='none'; panel.style.opacity='0.25'; setTimeout(()=>{panel.style.transition='opacity 0.4s ease'; panel.style.opacity='1';}, 30); }
+  addToast({type:"success", title:"Scenario simulation completed", msg:"Demand Surge +20% applied"});
+}
+function resetScenario(){
+  state.scenario = {demandIncrease:0, prodCapacityChange:0, transportDelay:0, leadTime:7};
+  document.getElementById('demandSlider').value=0; document.getElementById('demandSliderVal').textContent='0%';
+  document.getElementById('prodSlider').value=0; document.getElementById('prodSliderVal').textContent='0%';
+  document.getElementById('delaySlider').value=0; document.getElementById('delaySliderVal').textContent='0 days';
+  document.getElementById('leadSlider').value=7; document.getElementById('leadSliderVal').textContent='7 days';
+  renderScenarioImpact();
+}
+function scenariosPageHTML(){
+  const sc = state.scenario;
+  return `
+  <div style="display:flex; flex-direction:column; gap:18px; padding:22px 26px 50px;">
+    <div class="card anim-in" style="padding:22px; animation-delay:0.02s;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div style="font-size:14px; font-weight:700;">Simulate a Decision</div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Adjust the levers below to see real-time impact before committing.</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button onclick="runPresetScenario()" class="mono focus-ring" style="background:var(--cyan); color:#150B2E; border:none; padding:9px 16px; border-radius:8px; font-size:11.5px; font-weight:700;">▶ Run "Demand Surge +20%"</button>
+          <button onclick="resetScenario()" class="mono focus-ring" style="background:var(--bg2); color:var(--text-sec); border:1px solid var(--border); padding:9px 14px; border-radius:8px; font-size:11.5px; font-weight:700;">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1.3fr; gap:18px; align-items:start;">
+      <div class="card anim-in" style="padding:22px; animation-delay:0.08s;">
+        <div style="font-size:12.5px; font-weight:700; margin-bottom:16px;">Scenario Controls</div>
+        ${scenarioSliderRow("Demand increase","demandSlider",0,50,1,sc.demandIncrease,"%")}
+        ${scenarioSliderRow("Production capacity change","prodSlider",-20,20,1,sc.prodCapacityChange,"%")}
+        ${scenarioSliderRow("Transport delay","delaySlider",0,7,1,sc.transportDelay," days")}
+        ${scenarioSliderRow("Lead time","leadSlider",1,14,1,sc.leadTime," days")}
+      </div>
+      <div class="card anim-in" style="padding:22px; animation-delay:0.12s;">
+        <div style="font-size:12.5px; font-weight:700; margin-bottom:16px;">Scenario Impact</div>
+        <div id="scenarioImpactPanel"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================== REPORTS PAGE ============================== */
+function reportsMetrics(range){
+  const mult = range==='7d'?0.98: range==='quarter'?1.03:1;
+  return {
+    otif:(91.2*mult).toFixed(1), forecastAcc:(91.4*mult).toFixed(1), invTurns:(6.8*mult).toFixed(1),
+    capUtil:(82*mult).toFixed(0), avgDelay:(0.6/mult).toFixed(1), dockUtil:(74*mult).toFixed(0),
+    supplyGap:Math.round(-750*mult), shipPerf:(94*mult).toFixed(0),
+  };
+}
+function reportsRangeTabsHTML(){
+  const opts = [['7d','7 Days'],['30d','30 Days'],['quarter','Quarter']];
+  return opts.map(([k,l])=>`
+    <button onclick="setReportsRange('${k}')" class="mono focus-ring" style="font-size:11px; font-weight:700; padding:6px 13px; border-radius:7px; border:1px solid var(--border); background:${state.reportsRange===k?'var(--cyan)':'transparent'}; color:${state.reportsRange===k?'#150B2E':'var(--text-sec)'};">${l}</button>`).join('');
+}
+function setReportsRange(k){
+  state.reportsRange = k;
+  document.getElementById('reportsRangeTabs').innerHTML = reportsRangeTabsHTML();
+  document.getElementById('reportsMetricsGrid').innerHTML = reportsMetricsGridHTML();
+}
+function reportsMetricsGridHTML(){
+  const m = reportsMetrics(state.reportsRange);
+  return `
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px;">
+    ${impactStat("OTIF %", m.otif+"%", "#34E2B0")}
+    ${impactStat("Forecast Accuracy", m.forecastAcc+"%", "#FF4FA3")}
+    ${impactStat("Inventory Turns", m.invTurns+"x", "#38BDF8")}
+    ${impactStat("Capacity Utilization", m.capUtil+"%", "#7C5CFF")}
+    ${impactStat("Avg Delivery Delay", m.avgDelay+" days", "#FFAB2E")}
+    ${impactStat("Dock Utilization", m.dockUtil+"%", "#7C5CFF")}
+    ${impactStat("Supply-Demand Gap", m.supplyGap.toLocaleString()+" units", "#FF7A7A")}
+    ${impactStat("Shipment Performance", m.shipPerf+"%", "#34E2B0")}
+  </div>`;
+}
+function exportReport(){
+  const m = reportsMetrics(state.reportsRange);
+  const rows = [["Metric","Value"],["OTIF %",m.otif+"%"],["Forecast Accuracy",m.forecastAcc+"%"],["Inventory Turns",m.invTurns+"x"],
+    ["Capacity Utilization",m.capUtil+"%"],["Avg Delivery Delay",m.avgDelay+" days"],["Dock Utilization",m.dockUtil+"%"],
+    ["Supply-Demand Gap",m.supplyGap+" units"],["Shipment Performance",m.shipPerf+"%"]];
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `nexus-report-${state.reportsRange}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  addToast({type:"success", title:"Report exported", msg:`nexus-report-${state.reportsRange}.csv downloaded`});
+}
+function reportsPageHTML(){
+  return `
+  <div style="display:flex; flex-direction:column; gap:18px; padding:22px 26px 50px;">
+    <div class="card anim-in" style="padding:18px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div id="reportsRangeTabs" style="display:flex; gap:6px;">${reportsRangeTabsHTML()}</div>
+      <button onclick="exportReport()" class="mono focus-ring" style="background:var(--cyan); color:#150B2E; border:none; padding:9px 16px; border-radius:8px; font-size:11.5px; font-weight:700;">⭳ Export Report</button>
+    </div>
+    <div id="reportsMetricsGrid">${reportsMetricsGridHTML()}</div>
+  </div>`;
+}
+
+/* ============================== PAGE ROUTING ============================== */
+function renderMain(){
+  const el = document.getElementById('mainRegion');
+  stopTrackingSim();
+  if(state.page==='overview'){
+    el.innerHTML = overviewPageHTML();
+    wireChart();
+    animateSopRing();
+  } else if(state.page==='trucks'){
+    el.innerHTML = truckTrackingPageHTML();
+    wireMapInteractions();
+    startTrackingSim();
+  } else if(state.page==='sop'){
+    el.innerHTML = sopPageHTML();
+  } else if(state.page==='demand'){
+    el.innerHTML = demandPageHTML();
+  } else if(state.page==='inventory'){
+    el.innerHTML = inventoryPageHTML();
+  } else if(state.page==='procurement'){
+    el.innerHTML = procurementPageHTML();
+  } else if(state.page==='markdown'){
+    el.innerHTML = markdownPageHTML();
+  } else if(state.page==='financial'){
+    el.innerHTML = financialPageHTML();
+  } else if(state.page==='shipments'){
+    el.innerHTML = shipmentsPageHTML();
+  } else if(state.page==='yard'){
+    el.innerHTML = yardPageHTML();
+  } else if(state.page==='alerts'){
+    el.innerHTML = alertsPageHTML();
+  } else if(state.page==='scenarios'){
+    el.innerHTML = scenariosPageHTML();
+    renderScenarioImpact();
+  } else if(state.page==='decision'){
+    el.innerHTML = decisionPageHTML();
+  } else if(state.page==='reports'){
+    el.innerHTML = reportsPageHTML();
+  } else {
+    el.innerHTML = placeholderPageHTML("Coming soon","next phase");
+  }
+}
+function setPage(p){
+  state.page = p;
+  document.getElementById('sidebarRegion').innerHTML = sidebarHTML();
+  document.getElementById('headerRegion').innerHTML = headerHTML();
+  renderMain();
+}
+
+/* ============================== APP INIT ============================== */
+function initApp(){
+  document.getElementById('root').innerHTML = `
+    <div class="app-shell">
+      <div id="sidebarRegion">${sidebarHTML()}</div>
+      <div style="flex:1; min-width:0;">
+        <div id="headerRegion">${headerHTML()}</div>
+        <div id="mainRegion"></div>
+      </div>
+      <div id="drawerRegion"></div>
+      <div id="paletteRegion"></div>
+      <div id="toastRegion" style="position:fixed; bottom:20px; right:20px; z-index:70; display:flex; flex-direction:column; gap:10px; align-items:flex-end;"></div>
+    </div>`;
+  renderMain();
+
+  // last-updated ticker
+  setInterval(()=>{
+    state.secondsAgo = state.secondsAgo>=57 ? 1 : state.secondsAgo+1;
+    const t = document.getElementById('secondsAgoText');
+    if(t) t.textContent = state.secondsAgo;
+  }, 1000);
+
+  // keyboard shortcut for command palette
+  window.addEventListener('keydown', (e)=>{
+    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); state.paletteOpen ? closePalette() : openPalette(); }
+    if(e.key==='Escape' && state.paletteOpen) closePalette();
+  });
+
+  // demo toast
+  setTimeout(()=> addToast({type:"warning", title:"TRK-104 delay detected", msg:"32 minutes behind schedule"}), 2500);
+}
+
+initApp();
+</script>
+
+<script>
+/* ===== FINAL GAP FIX: Dedicated Trailer Allocation + True Rolling S&OP ===== */
+(function(){
+  const navItem={key:"allocation",label:"Trailer → Door Allocation",icon:ICONS.dock};
+  if(!NAV.some(x=>x.key==="allocation")){
+    const i=NAV.findIndex(x=>x.key==="alerts");
+    NAV.splice(i<0?NAV.length:i,0,navItem);
+  }
+  PAGE_META.allocation=["Trailer-to-Door Allocation","Every arrival window, trailer, assigned dock and operational status in one working summary."];
+
+  function allocRows(){
+    const st=window.NEXUS_DOCK_SCHEDULE||{};
+    const rows=[];
+    Object.entries(st.assignments||{}).forEach(([dock,arr])=>(arr||[]).forEach(a=>{
+      const t=(TRUCKS||[]).find(x=>x.id===a.truckId)||{};
+      const shipment=t.shipment||t.shipmentId||"—";
+      const start=(st.slots||[])[a.start]||"—";
+      const end=(st.slots||[])[Math.min(a.end,(st.slots||[]).length-1)]||"—";
+      rows.push({truck:a.truckId,trailer:a.trailerId||t.trailer||"—",shipment,dock,start,end,
+        load:t.loadType||"General",priority:t.priority||"Medium",
+        status:t.status||"Assigned"});
+    }));
+    return rows.sort((a,b)=>String(a.start).localeCompare(String(b.start)));
+  }
+
+  window.allocationPageHTML=function(){
+    const rows=allocRows();
+    return `<div style="display:flex;flex-direction:column;gap:16px;padding:22px 26px 50px">
+      <div class="card" style="padding:20px">
+        <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:start">
+          <div><div style="font-size:16px;font-weight:800">Trailer-to-Door Allocation Summary</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:5px">This is the final operational answer: which trailer goes to which dock, in which arrival window, and what action is required.</div></div>
+          <button class="mono focus-ring" onclick="renderMain()" style="padding:8px 13px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-weight:700;cursor:pointer">↻ Refresh</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px">
+          ${impactStat("Total Allocations",rows.length,"#38BDF8")}
+          ${impactStat("High Priority",rows.filter(r=>r.priority==="High").length,"#FFAB2E")}
+          ${impactStat("Assigned Docks",new Set(rows.map(r=>r.dock)).size,"#34E2B0")}
+          ${impactStat("Exceptions",rows.filter(r=>/delay|risk/i.test(r.status)).length,"#FF5C5C")}
+        </div>
+      </div>
+      <div class="card" style="padding:18px;overflow:auto">
+        <table style="width:100%;min-width:980px;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:var(--text-muted);text-align:left;border-bottom:1px solid var(--border)">
+            <th style="padding:11px">Trailer</th><th>Truck</th><th>Shipment</th><th>Arrival Window</th><th>Assigned Door</th><th>Load</th><th>Priority</th><th>Status</th><th>Action</th>
+          </tr></thead>
+          <tbody>${rows.length?rows.map(r=>`<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:12px 11px;font-weight:800">${r.trailer}</td><td>${r.truck}</td><td>${r.shipment}</td>
+            <td>${r.start} – ${r.end}</td><td><b style="color:#5CC8FF">${r.dock}</b></td><td>${r.load}</td><td>${r.priority}</td>
+            <td>${statusBadgeHTML(/delay/i.test(r.status)?"Delayed":r.status)}</td>
+            <td><button onclick="state.yardSelectedId='${r.truck}';setPage('yard')" style="padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-size:11px">Open Yard</button></td>
+          </tr>`).join(""):`<tr><td colspan="9" style="padding:35px;text-align:center;color:var(--text-muted)">No current allocation found. Open Yard & Docks and assign a truck to a dock; the summary will update automatically.</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card" style="padding:18px">
+        <div style="font-weight:800;font-size:13px">How it connects to E2</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;font-size:11px">
+          <span class="badge">Truck ETA</span><span>→</span><span class="badge">Arrival Window</span><span>→</span><span class="badge">Trailer Identified</span><span>→</span><span class="badge">Dock Recommended</span><span>→</span><span class="badge">Door Assigned</span>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  window.sopTabsHTML=function(){
+    const tabs=[["monthly","Rolling Monthly Plan"],["sales","Sales & Demand"],["production","Production"],["inventory","Inventory View"],["capacity","Capacity & Constraints"]];
+    return tabs.map(([k,l])=>`<button onclick="setSopTab('${k}')" class="mono focus-ring" style="font-size:11.5px;font-weight:700;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:${state.sopTab===k?'var(--cyan)':'var(--card)'};color:${state.sopTab===k?'#150B2E':'var(--text-sec)'}">${l}</button>`).join("");
+  };
+
+  window.rollingSopHTML=function(){
+    const months=["Aug","Sep","Oct","Nov","Dec","Jan"];
+    const sales=[47400,45200,43800,41500,40200,39600];
+    const prod=[44000,43000,42000,40500,39000,38500];
+    const inv=[18200,16000,14200,13200,12100,11000];
+    const rows=[
+      ["Sales / Consensus Demand",sales,"#FF4FA3"],
+      ["Planned Production",prod,"#38BDF8"],
+      ["Projected Closing Inventory",inv,"#34E2B0"]
+    ];
+    return `<div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:15px;font-weight:800">Rolling Monthly S&OP Cycle</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:5px">A single monthly operating plan that explicitly integrates sales demand, production supply and projected inventory over a rolling 6-month horizon.</div>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:9px;margin-top:16px">
+          ${["1. Demand Review","2. Supply Review","3. Inventory Review","4. Financial Review","5. Executive Approval"].map((x,i)=>`<div style="padding:12px;border:1px solid ${i===3?'#FFC94D55':'var(--border)'};border-radius:10px;background:var(--bg2)"><b style="font-size:11px">${x}</b><div style="font-size:10px;color:${i===3?'#FFC94D':'#34E2B0'};margin-top:5px">${i===3?"Pending decision":"✓ Reviewed"}</div></div>`).join("")}
+        </div>
+      </div>
+      <div class="card" style="padding:18px;overflow:auto">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">Integrated Sales + Production + Inventory View</div>
+        <table style="width:100%;min-width:800px;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid var(--border);color:var(--text-muted)"><th style="padding:11px;text-align:left">Metric</th>${months.map(m=>`<th>${m}</th>`).join("")}</tr></thead>
+        <tbody>${rows.map(([label,data,color])=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:13px 11px;font-weight:700;color:${color}">${label}</td>${data.map(v=>`<td class="mono">${v.toLocaleString()}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      </div>
+      <div class="card" style="padding:18px">
+        <div style="font-size:13px;font-weight:800">Current S&OP Decision</div>
+        <div style="margin-top:10px;padding:13px;border-left:3px solid #FFC94D;background:rgba(255,171,46,.07);font-size:12px;line-height:1.6">September demand is projected at <b>45,200 units</b> while planned production is <b>43,000 units</b>. Inventory absorbs the gap, but projected closing inventory falls toward the safety threshold. <b>Recommended action:</b> approve the current plan, monitor TRK-104 inbound ETA, and trigger capacity reallocation if the shipment delay exceeds the tolerance window.</div>
+      </div>
+    </div>`;
+  };
+
+  window.setSopTab=function(k){state.sopTab=k;const tabs=document.getElementById("sopTabsRegion"),content=document.getElementById("sopContentRegion");if(tabs)tabs.innerHTML=sopTabsHTML();if(content){content.innerHTML=k==="monthly"?rollingSopHTML():k==="sales"?sopSupplyPanelHTML():k==="production"?sopCapacityPanelHTML():k==="inventory"?inventoryPageHTML():sopCapacityPanelHTML();}};
+  window.sopPageHTML=function(){if(!["monthly","sales","production","inventory","capacity"].includes(state.sopTab))state.sopTab="monthly";return `<div style="display:flex;flex-direction:column;gap:16px;padding:22px 26px 50px"><div id="sopTabsRegion" style="display:flex;gap:8px;flex-wrap:wrap">${sopTabsHTML()}</div><div id="sopContentRegion">${state.sopTab==="monthly"?rollingSopHTML():state.sopTab==="inventory"?inventoryPageHTML():state.sopTab==="production"||state.sopTab==="capacity"?sopCapacityPanelHTML():sopSupplyPanelHTML()}</div></div>`};
+
+  const oldRenderMain=window.renderMain;
+  window.renderMain=function(){
+    if(state.page==="allocation"){
+      const el=document.getElementById("mainRegion");
+      stopTrackingSim();
+      el.innerHTML=allocationPageHTML();
+      return;
+    }
+    oldRenderMain();
+  };
+  if(state.page==="allocation") renderMain();
+})();
+</script>
+
+
+<script>
+/* ===== ROBUST DOCK-DOOR SCHEDULE FIX ===== */
+(function(){
+  function safeTrucks(){ return Array.isArray(window.TRUCKS) ? window.TRUCKS : []; }
+  function trailerFor(id){
+    const t=safeTrucks().find(x=>x.id===id || x.truckId===id) || {};
+    return t.trailerId || t.trailer || ({TRK-101:"TLR-7101",TRK-104:"TLR-8821",TRK-108:"TLR-7762",TRK-110:"TLR-5110",TRK-115:"TLR-6125"}[id]||"—");
+  }
+  const slots=["14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
+  const defaults={
+    D01:[{truckId:"TRK-101",trailerId:"TLR-7101",start:0,end:2}],
+    D02:[{truckId:"TRK-104",trailerId:"TLR-8821",start:1,end:3}],
+    D03:[{truckId:"TRK-110",trailerId:"TLR-5110",start:4,end:6}],
+    D04:[{truckId:"TRK-108",trailerId:"TLR-7762",start:0,end:2}],
+    D05:[],D06:[{truckId:"TRK-115",trailerId:"TLR-6125",start:5,end:7}]
+  };
+  window.NEXUS_DOCK_SCHEDULE = window.NEXUS_DOCK_SCHEDULE || {};
+  const st=window.NEXUS_DOCK_SCHEDULE;
+  st.slots=Array.isArray(st.slots)&&st.slots.length?st.slots:slots;
+  st.assignments=st.assignments||JSON.parse(JSON.stringify(defaults));
+  ["D01","D02","D03","D04","D05","D06"].forEach(d=>{if(!Array.isArray(st.assignments[d]))st.assignments[d]=[]});
+  st.maintenance=st.maintenance||{D04:[4,5]};
+
+  function persist(){ try{ localStorage.setItem("nexusDockSchedule",JSON.stringify({assignments:st.assignments,maintenance:st.maintenance})); }catch(e){} }
+  function load(){
+    try{
+      const saved=JSON.parse(localStorage.getItem("nexusDockSchedule")||"null");
+      if(saved&&saved.assignments){st.assignments=saved.assignments;st.maintenance=saved.maintenance||{};}
+    }catch(e){}
+  }
+  load();
+
+  function findAssignment(truckId){
+    for(const [dock,arr] of Object.entries(st.assignments)){
+      const a=arr.find(x=>x.truckId===truckId); if(a)return {dock,a};
+    } return null;
+  }
+  function conflicts(dock,start,end,ignoreTruck){
+    if((st.maintenance[dock]||[]).some(i=>i>=start&&i<end)) return "Maintenance";
+    return (st.assignments[dock]||[]).some(a=>a.truckId!==ignoreTruck && start<a.end && end>a.start) ? "Occupied" : null;
+  }
+  function refreshLinkedViews(){
+    if(typeof window.renderTrailerAllocationSummary==="function") window.renderTrailerAllocationSummary();
+    if(typeof window.renderMain==="function" && window.state?.page==="yard") window.renderMain();
+  }
+  window.assignTruckToDock=function(truckId,dock,start,end){
+    start=Number(start); end=Number(end);
+    if(!truckId || !st.assignments[dock] || !Number.isFinite(start)||!Number.isFinite(end)||end<=start){alert("Select a valid truck, dock and arrival window.");return false;}
+    const issue=conflicts(dock,start,end,truckId);
+    if(issue){alert("Cannot assign "+dock+": "+issue+" during this arrival window.");return false;}
+    Object.values(st.assignments).forEach(arr=>{for(let i=arr.length-1;i>=0;i--)if(arr[i].truckId===truckId)arr.splice(i,1)});
+    st.assignments[dock].push({truckId,trailerId:trailerFor(truckId),start,end});
+    persist(); renderDockSchedule(); refreshLinkedViews();
+    if(typeof addToast==="function") addToast({type:"success",title:"Dock assigned",msg:truckId+" → "+dock});
+    return true;
+  };
+  window.reassignSelectedDock=function(){
+    const truck=document.getElementById("dockTruckSelect")?.value;
+    const dock=document.getElementById("dockDoorSelect")?.value;
+    const start=document.getElementById("dockStartSelect")?.value;
+    const end=document.getElementById("dockEndSelect")?.value;
+    assignTruckToDock(truck,dock,start,end);
+  };
+  window.clearDockSchedule=function(){
+    if(!confirm("Reset dock assignments to the demo schedule?"))return;
+    st.assignments=JSON.parse(JSON.stringify(defaults)); persist(); renderDockSchedule(); refreshLinkedViews();
+  };
+  window.selectScheduleAssignment=function(truckId,dock,start){
+    st.selectedTruckId=truckId;
+    const sel=document.getElementById("dockTruckSelect"); if(sel)sel.value=truckId;
+    const d=document.getElementById("dockDoorSelect"); if(d)d.value=dock;
+    const ss=document.getElementById("dockStartSelect"); if(ss)ss.value=start;
+    const found=findAssignment(truckId); const ee=document.getElementById("dockEndSelect"); if(ee&&found)ee.value=found.a.end;
+    const summary=document.getElementById("dockScheduleSummary");
+    if(summary) summary.innerHTML="<b>"+truckId+"</b> / "+trailerFor(truckId)+" is assigned to <b>"+dock+"</b>. You can change the door or time window and click <b>Assign / Reassign</b>.";
+  };
+  window.renderDockSchedule=function(){
+    const grid=document.getElementById("dockScheduleGrid"); if(!grid)return;
+    grid.innerHTML="";
+    const h=document.createElement("div");h.className="sch-head";h.textContent="Dock Door";grid.appendChild(h);
+    st.slots.forEach(x=>{const c=document.createElement("div");c.className="sch-head";c.textContent=x;grid.appendChild(c)});
+    Object.keys(st.assignments).forEach(dock=>{
+      const l=document.createElement("div");l.className="sch-label";l.textContent=dock;grid.appendChild(l);
+      for(let i=0;i<st.slots.length;i++){
+        const cell=document.createElement("div");
+        const maint=(st.maintenance[dock]||[]).includes(i);
+        const a=(st.assignments[dock]||[]).find(x=>i>=x.start&&i<x.end);
+        if(maint){cell.className="sch-cell maintenance";cell.textContent="Maintenance";}
+        else if(a){cell.className="sch-cell assigned";cell.innerHTML="<div><div class='schedule-slot-title'>"+a.truckId+"</div><div class='schedule-slot-sub'>"+a.trailerId+"</div></div>";cell.onclick=()=>selectScheduleAssignment(a.truckId,dock,i);}
+        else {cell.className="sch-cell available";cell.textContent="Available";cell.onclick=()=>{const ss=document.getElementById("dockStartSelect");if(ss)ss.value=i;const ee=document.getElementById("dockEndSelect");if(ee)ee.value=Math.min(i+2,st.slots.length);const dd=document.getElementById("dockDoorSelect");if(dd)dd.value=dock;};}
+        grid.appendChild(cell);
+      }
+    });
+    const count=document.getElementById("allocationCount");
+    if(count) count.textContent=Object.values(st.assignments).flat().length+" active allocations";
+  };
+  window.renderDockScheduleControls=function(){
+    const box=document.getElementById("dockScheduleControls"); if(!box)return;
+    const trucks=safeTrucks().filter(t=>t.id||t.truckId).map(t=>t.id||t.truckId);
+    const dockOpts=Object.keys(st.assignments);
+    box.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;margin-top:14px">
+        <select id="dockTruckSelect">${trucks.map(id=>`<option value="${id}">${id} · ${trailerFor(id)}</option>`).join("")}</select>
+        <select id="dockDoorSelect">${dockOpts.map(d=>`<option value="${d}">${d}</option>`).join("")}</select>
+        <select id="dockStartSelect">${st.slots.map((x,i)=>`<option value="${i}">${x}</option>`).join("")}</select>
+        <select id="dockEndSelect">${st.slots.map((x,i)=>i>0?`<option value="${i}" ${i===2?"selected":""}>Until ${x}</option>`:"").join("")}</select>
+      </div>
+      <div class="schedule-actions">
+        <button onclick="reassignSelectedDock()">Assign / Reassign</button>
+        <button onclick="clearDockSchedule()">Reset Demo Schedule</button>
+      </div>`;
+    ["dockTruckSelect","dockDoorSelect","dockStartSelect","dockEndSelect"].forEach(id=>{
+      document.getElementById(id)?.addEventListener("change",()=>{});
+    });
+  };
+  const old=window.renderMain;
+  window.renderMain=function(){
+    old();
+    setTimeout(()=>{renderDockScheduleControls();renderDockSchedule();},0);
+  };
+  document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{renderDockScheduleControls();renderDockSchedule();},200));
+  setTimeout(()=>{renderDockScheduleControls();renderDockSchedule();},700);
+})();
+</script>
+
+
+<script>
+/* ===== DEMAND & SALES MODULE FIX ===== */
+(function(){
+  if(!window.NAV.some(x=>x.key==="demand")){
+    const i=window.NAV.findIndex(x=>x.key==="sop");
+    window.NAV.splice(i>=0?i:window.NAV.length,0,{key:"demand",label:"Demand & Sales",icon:ICONS.analytics});
+  }
+  window.PAGE_META.demand=["Demand & Sales","Reconcile merchandising forecasts, sales signals and consensus demand before supply planning."];
+
+  const demandData=[
+    {name:"Summer Linen",forecast:16800,actual:15400,sell:72,trend:"Above Plan",next:18200},
+    {name:"Denim Core",forecast:12400,actual:11900,sell:68,trend:"Stable",next:12600},
+    {name:"Activewear",forecast:9800,actual:10850,sell:81,trend:"High Demand",next:11500},
+    {name:"Winter Jacket",forecast:11200,actual:7600,sell:42,trend:"Below Plan",next:8200}
+  ];
+  window.demandPageHTML=function(){
+    const totalForecast=demandData.reduce((a,x)=>a+x.forecast,0);
+    const totalActual=demandData.reduce((a,x)=>a+x.actual,0);
+    const consensus=demandData.reduce((a,x)=>a+x.next,0);
+    return `<div style="display:flex;flex-direction:column;gap:16px;padding:22px 26px 50px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:16px;font-weight:800">Demand Reconciliation</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:5px">Merchandising forecast + actual sales performance + in-season sell-through → consensus demand plan.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:18px">
+          ${impactStat("Merchandising Forecast",totalForecast.toLocaleString()+" units","#38BDF8")}
+          ${impactStat("Actual Sales",totalActual.toLocaleString()+" units","#34E2B0")}
+          ${impactStat("Forecast Variance",((totalActual-totalForecast)/totalForecast*100).toFixed(1)+"%","#FFAB2E")}
+          ${impactStat("Consensus Next-Month Demand",consensus.toLocaleString()+" units","#FF4FA3")}
+        </div>
+      </div>
+
+      <div class="card" style="padding:18px;overflow:auto">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">Merchandising Forecast vs Sales Signals</div>
+        <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-muted);text-align:left">
+            <th style="padding:11px">Collection</th><th>Merch Forecast</th><th>Actual Sales</th><th>Variance</th><th>Sell-through</th><th>Demand Signal</th><th>Consensus Demand</th><th>Action</th>
+          </tr></thead>
+          <tbody>${demandData.map(x=>{
+            const variance=((x.actual-x.forecast)/x.forecast*100);
+            const sig=x.trend==="Below Plan"?"#FF5C5C":x.trend==="High Demand"?"#34E2B0":"#38BDF8";
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:13px 11px;font-weight:800">${x.name}</td>
+              <td>${x.forecast.toLocaleString()}</td><td>${x.actual.toLocaleString()}</td>
+              <td style="color:${variance>=0?'#34E2B0':'#FF5C5C'}">${variance>=0?'+':''}${variance.toFixed(1)}%</td>
+              <td>${x.sell}%</td><td style="color:${sig};font-weight:700">${x.trend}</td>
+              <td><b>${x.next.toLocaleString()}</b></td>
+              <td><button onclick="state.selectedDemandCollection='${x.name}';setPage('sop')" style="padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-size:11px">Send to S&OP</button></td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>
+      </div>
+
+      <div class="card" style="padding:18px">
+        <div style="font-size:13px;font-weight:800">How the Demand Plan Works</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;font-size:11px;align-items:center">
+          <span class="badge">Merchandising Forecast</span><span>+</span>
+          <span class="badge">Actual Sales</span><span>+</span>
+          <span class="badge">Sell-through</span><span>→</span>
+          <span class="badge" style="border-color:#34E2B055">Consensus Demand</span><span>→</span>
+          <span class="badge" style="border-color:#38BDF855">Capacity & Production</span><span>→</span>
+          <span class="badge" style="border-color:#FF4FA355">Inventory Projection</span>
+        </div>
+        <div style="margin-top:13px;padding:12px;border-left:3px solid #38BDF8;background:var(--bg2);font-size:12px;line-height:1.6">
+          <b>Example:</b> Activewear is selling above the merchandising forecast with an 81% sell-through rate. The consensus demand is therefore increased to 11,500 units before production and fabric capacity are reviewed.
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const oldRenderMain=window.renderMain;
+  window.renderMain=function(){
+    if(window.state && state.page==="demand"){
+      stopTrackingSim();
+      const el=document.getElementById("mainRegion");
+      if(el) el.innerHTML=demandPageHTML();
+      return;
+    }
+    oldRenderMain();
+  };
+  if(window.state?.page==="demand") renderMain();
+})();
+</script>
+
+</body>
+</html>
