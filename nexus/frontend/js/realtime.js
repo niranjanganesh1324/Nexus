@@ -2,13 +2,26 @@
  * NEXUS Real-time WebSocket Client with Serverless Polling Fallback
  * Manages /ws/live connection, auto-reconnect, and fallback telemetry polling.
  */
-import { store } from "./store.js";
-import { API } from "./api.js";
+import { store } from "./store.js?v=10";
+import { API } from "./api.js?v=10";
 
 let socket = null;
 let reconnectTimer = null;
 let retryCount = 0;
 let fallbackPollingTimer = null;
+
+function updateLiveIndicators(isLive) {
+  store.wsConnected = isLive;
+  const hDot = document.getElementById("headerLiveDot");
+  const hTxt = document.getElementById("headerLiveText");
+  const sDot = document.getElementById("sidebarLiveDot");
+  const sTxt = document.getElementById("sidebarLiveText");
+
+  if (hDot) hDot.style.background = isLive ? "#34E2B0" : "#FFAB2E";
+  if (hTxt) hTxt.textContent = isLive ? "LIVE · Server Synchronized" : "Reconnecting...";
+  if (sDot) sDot.style.background = isLive ? "#34E2B0" : "#FFAB2E";
+  if (sTxt) sTxt.textContent = isLive ? "LIVE · Synchronized" : "Reconnecting...";
+}
 
 export function initRealtime(onMessageCallback) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -22,7 +35,7 @@ function connect(wsUrl, onMessageCallback) {
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      store.wsConnected = true;
+      updateLiveIndicators(true);
       retryCount = 0;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (fallbackPollingTimer) {
@@ -41,13 +54,11 @@ function connect(wsUrl, onMessageCallback) {
     };
 
     socket.onclose = () => {
-      store.wsConnected = false;
       scheduleReconnect(wsUrl, onMessageCallback);
       startFallbackPolling(onMessageCallback);
     };
 
     socket.onerror = () => {
-      store.wsConnected = false;
       try { socket.close(); } catch (e) {}
     };
   } catch (e) {
@@ -59,17 +70,18 @@ function connect(wsUrl, onMessageCallback) {
 function scheduleReconnect(wsUrl, onMessageCallback) {
   if (reconnectTimer) clearTimeout(reconnectTimer);
   retryCount++;
-  // If failed more than 3 times, back off to 20s
   const delay = retryCount > 3 ? 20000 : Math.min(2000 * retryCount, 10000);
   reconnectTimer = setTimeout(() => connect(wsUrl, onMessageCallback), delay);
 }
 
 function startFallbackPolling(onMessageCallback) {
   if (fallbackPollingTimer) return;
-  fallbackPollingTimer = setInterval(async () => {
+  const poll = async () => {
     try {
       const data = await API.getTrucks();
+      updateLiveIndicators(true);
       if (data && data.trucks) {
+        store.trucks = data.trucks;
         const payload = data.trucks.map(t => ({
           truck_id: t.id,
           status: t.status,
@@ -87,5 +99,7 @@ function startFallbackPolling(onMessageCallback) {
     } catch (e) {
       // Quietly ignore polling failures on offline
     }
-  }, 4000);
+  };
+  poll();
+  fallbackPollingTimer = setInterval(poll, 3000);
 }

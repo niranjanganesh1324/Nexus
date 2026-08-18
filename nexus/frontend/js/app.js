@@ -1,19 +1,19 @@
-import { API } from "./api.js?v=9";
-import { store } from "./store.js?v=9";
-import { initRealtime } from "./realtime.js?v=9";
+import { API } from "./api.js?v=10";
+import { store } from "./store.js?v=10";
+import { initRealtime } from "./realtime.js?v=10";
 
-import { renderSidebar } from "./components/sidebar.js?v=9";
-import { renderHeader } from "./components/header.js?v=9";
-import { renderToasts, addToast, removeToast, renderPalette, renderPaletteResults } from "./components/toasts.js?v=9";
-import { NAV } from "./components/helpers.js?v=9";
+import { renderSidebar } from "./components/sidebar.js?v=10";
+import { renderHeader } from "./components/header.js?v=10";
+import { renderToasts, addToast, removeToast, renderPalette, renderPaletteResults } from "./components/toasts.js?v=10";
+import { NAV } from "./components/helpers.js?v=10";
 
-import { renderOverviewPage } from "./pages/overview.js?v=9";
-import { renderTrucksPage, initTrucksMap, updateTrucksLiveTelemetry, highlightTruckOnMap } from "./pages/trucks.js?v=9";
-import { renderYardPage } from "./pages/yard.js?v=9";
-import { renderAllocationPage } from "./pages/allocation.js?v=9";
-import { renderShipmentsPage } from "./pages/shipments.js?v=9";
-import { renderAlertsPage } from "./pages/alerts.js?v=9";
-import { renderSOPPage } from "./pages/sop.js?v=9";
+import { renderOverviewPage } from "./pages/overview.js?v=10";
+import { renderTrucksPage, initTrucksMap, updateTrucksLiveTelemetry, highlightTruckOnMap } from "./pages/trucks.js?v=10";
+import { renderYardPage } from "./pages/yard.js?v=10";
+import { renderAllocationPage } from "./pages/allocation.js?v=10";
+import { renderShipmentsPage } from "./pages/shipments.js?v=10";
+import { renderAlertsPage } from "./pages/alerts.js?v=10";
+import { renderSOPPage } from "./pages/sop.js?v=10";
 import { renderDemandPage } from "./pages/demand.js?v=9";
 import { renderInventoryPage } from "./pages/inventory.js?v=9";
 import { renderProcurementPage } from "./pages/procurement.js?v=9";

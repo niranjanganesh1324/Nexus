@@ -1,5 +1,5 @@
-import { store } from "../store.js?v=8";
-import { PAGE_META, ICONS } from "./helpers.js?v=8";
+import { store } from "../store.js?v=10";
+import { PAGE_META, ICONS } from "./helpers.js?v=10";
 
 const FACILITIES = ["All Facilities", "Chennai DC", "Bangalore DC", "Mumbai DC", "Hyderabad DC"];
 
@@ -16,8 +16,8 @@ export function renderHeader() {
     </div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted);">
-        <span class="live-dot" style="background:${store.wsConnected ? '#34E2B0' : '#FFAB2E'}"></span> 
-        ${store.wsConnected ? 'LIVE · Server Synchronized' : 'Reconnecting...'}
+        <span id="headerLiveDot" class="live-dot" style="background:#34E2B0"></span> 
+        <span id="headerLiveText">LIVE · Server Synchronized</span>
       </div>
       <select onchange="window.setFacility(this.value)" class="mono focus-ring"
         style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:11.5px; color:var(--text); cursor:pointer;">

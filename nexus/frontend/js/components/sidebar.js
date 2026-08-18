@@ -1,5 +1,5 @@
-import { store } from "../store.js?v=9";
-import { NAV, ICONS } from "./helpers.js?v=9";
+import { store } from "../store.js?v=10";
+import { NAV, ICONS } from "./helpers.js?v=10";
 
 export function renderSidebar() {
   const items = NAV.map(n => {
@@ -22,8 +22,8 @@ export function renderSidebar() {
     <div style="flex:1; padding:10px 8px; overflow-y:auto;">${items}</div>
     <div style="padding:12px; border-top:1px solid var(--border);">
       <div style="display:flex; align-items:center; gap:10px; padding:8px 6px;">
-        <span class="live-dot" style="background:${store.wsConnected ? '#34E2B0' : '#FFAB2E'}"></span>
-        ${!store.collapsed ? `<span style="font-size:11px; color:var(--text-muted);">${store.wsConnected ? 'LIVE · Synchronized' : 'Reconnecting...'}</span>` : ''}
+        <span id="sidebarLiveDot" class="live-dot" style="background:#34E2B0"></span>
+        ${!store.collapsed ? `<span id="sidebarLiveText" style="font-size:11px; color:var(--text-muted);">LIVE · Synchronized</span>` : ''}
       </div>
       <div style="display:flex; align-items:center; gap:10px; padding:8px 6px;">
         <div style="width:24px; height:24px; border-radius:50%; background:var(--card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0;">MK</div>

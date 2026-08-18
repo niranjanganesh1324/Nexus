@@ -1,6 +1,6 @@
-import { API } from "../api.js?v=4";
-import { store } from "../store.js?v=4";
-import { statusBadgeHTML } from "../components/helpers.js?v=4";
+import { API } from "../api.js?v=10";
+import { store } from "../store.js?v=10";
+import { statusBadgeHTML } from "../components/helpers.js?v=10";
 
 export const FACILITY_COORDS = {
   "FAC-MUM-PLANT": [19.0760, 72.8777],
@@ -36,7 +36,7 @@ let currentTileLayer = null;
 let currentMapTheme = 'dark'; // 'dark' | 'light'
 let mapLayers = {
   markers: {},
-  routes: [],
+  routes: {},
   trunkRoutes: [],
   facilities: []
 };
@@ -132,9 +132,8 @@ export function toggleMapTheme() {
     if (iconEl) iconEl.textContent = '🌙';
   }
 
-  // Re-order layers to ensure routes and pins stay on top
   mapLayers.trunkRoutes.forEach(tr => tr.bringToFront());
-  mapLayers.routes.forEach(r => r.bringToFront());
+  Object.values(mapLayers.routes).forEach(r => r.bringToFront());
   Object.values(mapLayers.markers).forEach(m => m.bringToFront());
   mapLayers.facilities.forEach(f => f.bringToFront());
 }
@@ -144,7 +143,6 @@ export function initTrucksMap() {
   const container = document.getElementById("realMap");
   if (!container || !window.L) return;
 
-  // Cleanup old map instance if needed
   if (mapInstance) {
     try {
       mapInstance.remove();
@@ -153,15 +151,13 @@ export function initTrucksMap() {
     }
     mapInstance = null;
   }
-  mapLayers = { markers: {}, routes: [], trunkRoutes: [], facilities: [] };
+  mapLayers = { markers: {}, routes: {}, trunkRoutes: [], facilities: [] };
 
-  // Initialize Leaflet Map centered on South-Central India network corridor
   mapInstance = window.L.map('realMap', {
     zoomControl: false,
     attributionControl: false
   }).setView([15.8, 77.5], 6);
 
-  // Active theme tile layer
   const tileUrl = currentMapTheme === 'light'
     ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
@@ -176,7 +172,6 @@ export function initTrucksMap() {
     mapEl.style.background = currentMapTheme === 'light' ? '#e2e8f0' : '#07111F';
   }
 
-  // Zoom control
   window.L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
 
   renderMapLayers();
@@ -249,7 +244,7 @@ function renderMapLayers() {
     if (coordA && coordB) {
       const routeLine = window.L.polyline([coordA, coordB], {
         color: isSelected ? '#00D4C7' : color,
-        weight: isSelected ? 5 : 2.5,
+        weight: isSelected ? 5.5 : 2.5,
         opacity: isSelected ? 0.95 : 0.4,
         lineCap: 'round',
         lineJoin: 'round',
@@ -265,7 +260,7 @@ function renderMapLayers() {
         window.selectTrackingTruck(t.id);
       });
 
-      mapLayers.routes.push(routeLine);
+      mapLayers.routes[t.id] = routeLine;
 
       if (isSelected) {
         selectedTruckRoute = [coordA, coordB];
@@ -273,7 +268,6 @@ function renderMapLayers() {
       }
     }
 
-    // Live Truck Marker
     const pos = getTruckPosition(t);
     const marker = window.L.marker(pos, {
       icon: createTruckIcon(t, isSelected),
@@ -297,7 +291,6 @@ function renderMapLayers() {
     mapLayers.markers[t.id] = marker;
   });
 
-  // Fit bounds to selected truck route if available
   if (selectedTruckRoute && mapInstance) {
     try {
       const bounds = window.L.latLngBounds(selectedTruckRoute);
@@ -308,10 +301,172 @@ function renderMapLayers() {
   }
 }
 
+export function highlightTruckOnMap(truckId) {
+  if (!mapInstance || !window.L || !store.trucks) return;
+
+  const trucks = store.trucks || [];
+  let targetPos = null;
+  let targetRoute = null;
+
+  trucks.forEach(t => {
+    const isSelected = t.id === truckId;
+    const color = getStatusColor(t.status);
+
+    // Update marker
+    const marker = mapLayers.markers[t.id];
+    if (marker) {
+      marker.setIcon(createTruckIcon(t, isSelected));
+      marker.setZIndexOffset(isSelected ? 1000 : 100);
+      if (isSelected) {
+        marker.bringToFront();
+        targetPos = getTruckPosition(t);
+      }
+    }
+
+    // Update route polyline
+    const route = mapLayers.routes[t.id];
+    if (route) {
+      route.setStyle({
+        color: isSelected ? '#00D4C7' : color,
+        weight: isSelected ? 5.5 : 2.5,
+        opacity: isSelected ? 0.95 : 0.4,
+        dashArray: isSelected ? null : '6, 6'
+      });
+      if (isSelected) {
+        route.bringToFront();
+        const coordA = getFacilityCoord(t.origin_name || t.origin_id);
+        const coordB = getFacilityCoord(t.destination_name || t.destination_id);
+        if (coordA && coordB) targetRoute = [coordA, coordB];
+      }
+    }
+  });
+
+  if (targetRoute && mapInstance) {
+    try {
+      const bounds = window.L.latLngBounds(targetRoute);
+      mapInstance.fitBounds(bounds.pad(0.35), { animate: true, duration: 0.7 });
+    } catch (e) {
+      if (targetPos) mapInstance.flyTo(targetPos, 8, { duration: 0.7 });
+    }
+  } else if (targetPos && mapInstance) {
+    mapInstance.flyTo(targetPos, 8, { duration: 0.7 });
+  }
+}
+
+export async function selectTrackingTruck(truckId) {
+  store.trackingSelectedId = truckId;
+
+  // 1. Update left fleet list active styles in place
+  (store.trucks || []).forEach(t => {
+    const el = document.getElementById(`truck-card-${t.id}`);
+    if (el) {
+      const active = t.id === truckId;
+      el.style.background = active ? 'rgba(0,212,199,0.14)' : 'rgba(13,27,42,0.6)';
+      el.style.borderColor = active ? 'var(--cyan)' : 'var(--border)';
+      el.style.boxShadow = active ? '0 0 14px rgba(0,212,199,0.25)' : 'none';
+      const lbl = el.querySelector('.truck-id-label');
+      if (lbl) lbl.style.color = active ? 'var(--cyan)' : 'var(--text)';
+    }
+  });
+
+  // 2. Update Map route highlighting & focus
+  highlightTruckOnMap(truckId);
+
+  // 3. Update right details panel
+  const rightRegion = document.getElementById("truckDetailsRegion");
+  if (rightRegion) {
+    const selectedTruck = (store.trucks || []).find(t => t.id === truckId);
+    let recData = null;
+    try {
+      if (selectedTruck) recData = await API.getDockRecommendation(selectedTruck.id);
+    } catch (e) {}
+    rightRegion.innerHTML = renderTruckRightPanel(selectedTruck, recData);
+  }
+}
+window.selectTrackingTruck = selectTrackingTruck;
+
+export function renderTruckRightPanel(selectedTruck, recData) {
+  if (!selectedTruck) {
+    return `<div class="card" style="padding:30px; text-align:center; color:var(--text-muted);">Select a truck to view live telemetry</div>`;
+  }
+
+  const tState = selectedTruck.tracking_state || { progress_pct: 50, speed_kmh: 55, distance_remaining_km: 120, delay_minutes: 0 };
+  const color = getStatusColor(selectedTruck.status);
+
+  return `
+  <div class="card anim-in" style="padding:20px; height:100%; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div class="mono" style="font-size:18px; font-weight:700; color:var(--cyan);">${selectedTruck.id}</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${selectedTruck.shipment_id} · Driver: ${selectedTruck.driver_name}</div>
+      </div>
+      ${statusBadgeHTML(selectedTruck.status)}
+    </div>
+
+    <div style="margin-top:14px; display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); background:var(--bg2); padding:7px 10px; border-radius:7px; border:1px solid var(--border);">
+      <span class="live-dot" style="background:#34E2B0"></span> LIVE · SERVER SYNCHRONIZED
+    </div>
+
+    <div style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+        <span style="color:var(--text-sec);">Trip Progress</span>
+        <span class="mono" id="selTruckProgress" style="font-weight:700; color:var(--cyan);">${tState.progress_pct ? tState.progress_pct.toFixed(0) : 0}%</span>
+      </div>
+      <div style="height:6px; background:var(--bg2); border-radius:4px; overflow:hidden;">
+        <div id="selTruckProgressBar" style="height:100%; width:${tState.progress_pct || 0}%; background:${color}; border-radius:4px; transition:width 1.2s ease;"></div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Current Speed</div>
+        <div class="mono" id="selTruckSpeed" style="font-size:13px; font-weight:700; margin-top:3px;">${tState.speed_kmh ? tState.speed_kmh.toFixed(1) : 0} km/h</div>
+      </div>
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Dist. Remaining</div>
+        <div class="mono" id="selTruckDist" style="font-size:13px; font-weight:700; margin-top:3px;">${tState.distance_remaining_km ? tState.distance_remaining_km.toFixed(1) : 0} km</div>
+      </div>
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Load Units</div>
+        <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px;">${selectedTruck.load_units} u</div>
+      </div>
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Priority</div>
+        <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px; color:${selectedTruck.priority === 'High' ? '#FF7A7A' : '#FFC94D'}">${selectedTruck.priority}</div>
+      </div>
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">ETA</div>
+        <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px;">${selectedTruck.scheduled_eta}</div>
+      </div>
+      <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Delay Status</div>
+        <div class="mono" id="selTruckDelay" style="font-size:13px; font-weight:700; margin-top:3px; color:${tState.delay_minutes > 0 ? '#FF7A7A' : '#34E2B0'}">${tState.delay_minutes > 0 ? '+' + tState.delay_minutes + ' min' : 'On time'}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px; padding:14px; background:var(--bg2); border-radius:10px; border:1px solid var(--border);">
+      <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Explainable Recommended Dock</span>
+        ${recData && recData.confidence ? `<span class="mono" style="font-size:10.5px; color:#34E2B0; font-weight:700;">${recData.confidence}% match</span>` : ''}
+      </div>
+      ${recData && recData.best ? `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="mono" style="font-size:16px; font-weight:700; color:var(--cyan);">${recData.best.dock_id} (Zone ${recData.best.zone || 'A'})</div>
+            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;">Score: <b>${recData.best.score}/100</b> · Compatible</div>
+          </div>
+        </div>
+        <button onclick="window.assignDock('${selectedTruck.id}','${recData.best.dock_id}')" class="mono focus-ring"
+          style="margin-top:12px; width:100%; background:var(--cyan); color:#07111F; border:none; padding:9px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;">
+          Assign Dock ${recData.best.dock_id}
+        </button>` : `<div style="font-size:11px; color:var(--text-muted);">No compatible docks currently available.</div>`}
+    </div>
+  </div>`;
+}
+
 export function updateTrucksLiveTelemetry(payload) {
   if (!mapInstance || !window.L || !store.trucks) return;
 
-  // 1. Update map markers smoothly
   (store.trucks || []).forEach(t => {
     const marker = mapLayers.markers[t.id];
     const isSelected = store.trackingSelectedId === t.id;
@@ -322,7 +477,6 @@ export function updateTrucksLiveTelemetry(payload) {
       marker.setIcon(createTruckIcon(t, isSelected));
     }
 
-    // Update list item progress bar and text in DOM
     const bar = document.getElementById(`truck-bar-${t.id}`);
     const pct = document.getElementById(`truck-pct-${t.id}`);
     if (bar && t.tracking_state) {
@@ -333,7 +487,6 @@ export function updateTrucksLiveTelemetry(payload) {
     }
   });
 
-  // 2. Update right panel if selected truck is updated
   const sel = (store.trucks || []).find(t => t.id === store.trackingSelectedId);
   if (sel && sel.tracking_state) {
     const s = sel.tracking_state;
@@ -352,18 +505,6 @@ export function updateTrucksLiveTelemetry(payload) {
       delay.style.color = s.delay_minutes > 0 ? '#FF7A7A' : '#34E2B0';
     }
   }
-}
-
-export function highlightTruckOnMap(truckId) {
-  if (!mapInstance || !window.L) return;
-
-  Object.values(mapLayers.markers).forEach(m => mapInstance.removeLayer(m));
-  mapLayers.routes.forEach(r => mapInstance.removeLayer(r));
-  mapLayers.trunkRoutes.forEach(tr => mapInstance.removeLayer(tr));
-  mapLayers.facilities.forEach(f => mapInstance.removeLayer(f));
-
-  mapLayers = { markers: {}, routes: [], trunkRoutes: [], facilities: [] };
-  renderMapLayers();
 }
 
 window.recenterMap = function () {
@@ -435,15 +576,15 @@ export async function renderTrucksPage() {
       const color = getStatusColor(t.status);
       const state = t.tracking_state || { progress_pct: 50 };
       return `
-      <div onclick="window.selectTrackingTruck('${t.id}')" class="focus-ring"
-        style="padding:11px 12px; border-radius:10px; cursor:pointer; margin-bottom:6px;
-        background:${active ? 'rgba(0,212,199,0.12)' : 'rgba(13,27,42,0.6)'};
+      <div id="truck-card-${t.id}" onclick="window.selectTrackingTruck('${t.id}')" class="focus-ring"
+        style="padding:11px 12px; border-radius:10px; cursor:pointer; margin-bottom:6px; transition:all 0.15s ease;
+        background:${active ? 'rgba(0,212,199,0.14)' : 'rgba(13,27,42,0.6)'};
         border:1.5px solid ${active ? 'var(--cyan)' : 'var(--border)'};
-        box-shadow:${active ? '0 0 12px rgba(0,212,199,0.2)' : 'none'};">
+        box-shadow:${active ? '0 0 14px rgba(0,212,199,0.25)' : 'none'};">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="display:flex; align-items:center; gap:8px;">
             <span style="width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0; box-shadow:0 0 8px ${color};"></span>
-            <span class="mono" style="font-size:12.5px; font-weight:700; color:${active ? 'var(--cyan)' : 'var(--text)'};">${t.id}</span>
+            <span class="mono truck-id-label" style="font-size:12.5px; font-weight:700; color:${active ? 'var(--cyan)' : 'var(--text)'};">${t.id}</span>
           </div>
           ${statusBadgeHTML(t.status)}
         </div>
@@ -458,78 +599,7 @@ export async function renderTrucksPage() {
       </div>`;
     }).join('');
 
-    const tState = selectedTruck ? (selectedTruck.tracking_state || { progress_pct: 0, speed_kmh: 0, distance_remaining_km: 0, delay_minutes: 0 }) : { progress_pct: 0, speed_kmh: 0, distance_remaining_km: 0, delay_minutes: 0 };
-    const color = selectedTruck ? getStatusColor(selectedTruck.status) : "#34E2B0";
-
-    const rightPanel = selectedTruck ? `
-    <div class="card anim-in" style="padding:20px; height:100%; overflow-y:auto;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="mono" style="font-size:18px; font-weight:700; color:var(--cyan);">${selectedTruck.id}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${selectedTruck.shipment_id} · Driver: ${selectedTruck.driver_name}</div>
-        </div>
-        ${statusBadgeHTML(selectedTruck.status)}
-      </div>
-
-      <div style="margin-top:14px; display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); background:var(--bg2); padding:7px 10px; border-radius:7px; border:1px solid var(--border);">
-        <span class="live-dot" style="background:${store.wsConnected ? '#34E2B0' : '#FFAB2E'}"></span> LIVE · SERVER SYNCHRONIZED
-      </div>
-
-      <div style="margin-top:16px;">
-        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-          <span style="color:var(--text-sec);">Trip Progress</span>
-          <span class="mono" id="selTruckProgress" style="font-weight:700; color:var(--cyan);">${tState.progress_pct ? tState.progress_pct.toFixed(0) : 0}%</span>
-        </div>
-        <div style="height:6px; background:var(--bg2); border-radius:4px; overflow:hidden;">
-          <div id="selTruckProgressBar" style="height:100%; width:${tState.progress_pct || 0}%; background:${color}; border-radius:4px; transition:width 1.2s ease;"></div>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Current Speed</div>
-          <div class="mono" id="selTruckSpeed" style="font-size:13px; font-weight:700; margin-top:3px;">${tState.speed_kmh ? tState.speed_kmh.toFixed(1) : 0} km/h</div>
-        </div>
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Dist. Remaining</div>
-          <div class="mono" id="selTruckDist" style="font-size:13px; font-weight:700; margin-top:3px;">${tState.distance_remaining_km ? tState.distance_remaining_km.toFixed(1) : 0} km</div>
-        </div>
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Load Units</div>
-          <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px;">${selectedTruck.load_units} u</div>
-        </div>
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Priority</div>
-          <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px; color:${selectedTruck.priority === 'High' ? '#FF7A7A' : '#FFC94D'}">${selectedTruck.priority}</div>
-        </div>
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">ETA</div>
-          <div class="mono" style="font-size:13px; font-weight:700; margin-top:3px;">${selectedTruck.scheduled_eta}</div>
-        </div>
-        <div style="background:var(--bg2); padding:10px; border-radius:8px; border:1px solid var(--border);">
-          <div style="font-size:9.5px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Delay Status</div>
-          <div class="mono" id="selTruckDelay" style="font-size:13px; font-weight:700; margin-top:3px; color:${tState.delay_minutes > 0 ? '#FF7A7A' : '#34E2B0'}">${tState.delay_minutes > 0 ? '+' + tState.delay_minutes + ' min' : 'On time'}</div>
-        </div>
-      </div>
-
-      <div style="margin-top:18px; padding:14px; background:var(--bg2); border-radius:10px; border:1px solid var(--border);">
-        <div style="font-size:11.5px; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-          <span>Explainable Recommended Dock</span>
-          ${recData && recData.confidence ? `<span class="mono" style="font-size:10.5px; color:#34E2B0; font-weight:700;">${recData.confidence}% match</span>` : ''}
-        </div>
-        ${recData && recData.best ? `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div class="mono" style="font-size:16px; font-weight:700; color:var(--cyan);">${recData.best.dock_id} (Zone ${recData.best.zone || 'A'})</div>
-              <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;">Score: <b>${recData.best.score}/100</b> · Compatible</div>
-            </div>
-          </div>
-          <button onclick="window.assignDock('${selectedTruck.id}','${recData.best.dock_id}')" class="mono focus-ring"
-            style="margin-top:12px; width:100%; background:var(--cyan); color:#07111F; border:none; padding:9px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;">
-            Assign Dock ${recData.best.dock_id}
-          </button>` : `<div style="font-size:11px; color:var(--text-muted);">No compatible docks currently available.</div>`}
-      </div>
-    </div>` : `<div class="card" style="padding:30px; text-align:center; color:var(--text-muted);">Select a truck to view live telemetry</div>`;
+    const rightPanel = renderTruckRightPanel(selectedTruck, recData);
 
     return `
     <div style="display:grid; grid-template-columns:260px 1fr 320px; gap:16px; padding:22px 26px 50px; height:calc(100vh - 78px); min-width:0;">
@@ -588,7 +658,7 @@ export async function renderTrucksPage() {
       </div>
 
       <!-- Right Details Column -->
-      <div style="min-height:0;">${rightPanel}</div>
+      <div id="truckDetailsRegion" style="min-height:0;">${rightPanel}</div>
     </div>`;
   } catch (err) {
     console.error("renderTrucksPage error:", err);
