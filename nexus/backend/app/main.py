@@ -20,7 +20,23 @@ from app.ws import manager, broadcast
 async def lifespan(app: FastAPI):
     # Startup
     Base.metadata.create_all(bind=engine)
-    await start_tracking_loop(broadcast)
+    
+    # Auto-seed if database is fresh / empty
+    from app.models import Facility
+    from app.database import SessionLocal
+    from app.seed import seed_db
+    try:
+        with SessionLocal() as db:
+            if not db.query(Facility).first():
+                seed_db()
+    except Exception as e:
+        print(f"Auto-seed notification: {e}")
+
+    try:
+        await start_tracking_loop(broadcast)
+    except Exception as e:
+        print(f"Tracking loop notification: {e}")
+
     yield
     # Shutdown
     stop_tracking_loop()
